@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ceph 网盘 - 完整版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 100%; margin: 0 auto; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .file-manager { background: white; border-radius: 8px; overflow: hidden; }
+        .toolbar { padding: 15px; border-bottom: 1px solid #eee; display: flex; gap: 10px; flex-wrap: wrap; }
+        .breadcrumb { padding: 15px; background: #f8f9fa; font-size: 14px; border-bottom: 1px solid #eee; }
+        .file-list { min-height: 500px; }
+        .file-item { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .file-item:hover { background: #f5f5f5; }
+        .file-name { display: flex; align-items: center; gap: 10px; }
+        .folder { color: #ffa000; }
+        .file { color: #4a90e2; }
+        .file-size { color: #999; font-size: 12px; margin-left: 10px; }
+        .btn { padding: 8px 16px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-danger { background: #dc3545; }
+        .btn-success { background: #28a745; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 400px; }
+        .modal input { width: 100%; padding: 8px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; }
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .status-bar { padding: 10px 15px; background: #f8f9fa; border-top: 1px solid #eee; font-size: 12px; color: #666; }
+        .btn-sm { padding: 4px 8px; font-size: 12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>💾 Ceph 文件系统网盘</h2>
+        <p id="currentPathInfo">当前位置: /</p>
+    </div>
+
+    <div class="file-manager">
+        <div class="toolbar">
+            <button class="btn" onclick="createFolder()">📁 新建文件夹</button>
+            <button class="btn" onclick="uploadFile()">📤 上传文件</button>
+            <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
+            <button class="btn" onclick="refreshFiles()">🔄 刷新</button>
+            <button class="btn btn-success" onclick="mountToPod()">🔗 挂载到容器</button>
+        </div>
+        <div class="breadcrumb" id="breadcrumb"></div>
+        <div class="file-list" id="fileList">
+            <div class="loading">加载中...</div>
+        </div>
+        <div class="status-bar" id="statusBar"></div>
+    </div>
+</div>
+
+<!-- 新建文件夹模态框 -->
+<div id="folderModal" class="modal">
+    <div class="modal-content">
+        <h3>📁 新建文件夹</h3>
+        <input type="text" id="folderName" placeholder="文件夹名称">
+        <div class="modal-buttons">
+            <button class="btn" onclick="createFolderConfirm()">创建</button>
+            <button class="btn btn-danger" onclick="closeModal('folderModal')">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 上传文件模态框 -->
+<div id="uploadModal" class="modal">
+    <div class="modal-content">
+        <h3>📤 上传文件</h3>
+        <input type="file" id="uploadInput" multiple>
+        <div class="modal-buttons">
+            <button class="btn btn-success" onclick="uploadConfirm()">上传</button>
+            <button class="btn btn-danger" onclick="closeModal('uploadModal')">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPath = '/';
+let selectedItems = [];
+
+async function loadFiles() {
+    const container = document.getElementById('fileList');
+    container.innerHTML = '<div class="loading">加载中...</div>';
+    
+    try {
+        const response = await fetch(`/api/fs/list?path=${encodeURIComponent(currentPath)}`);
+        const items = await response.json();
+        
+        if (items.error) {
+            container.innerHTML = `<div class="loading">❌ ${items.error}</div>`;
+            return;
+        }
+        
+        if (items.length === 0) {
+            container.innerHTML = '<div class="loading">📂 目录为空</div>';
+            document.getElementById('statusBar').innerHTML = '0 个项目';
+            return;
+        }
+        
+        container.innerHTML = items.map(item => `
+            <div class="file-item" data-path="${item.full_path}" data-isdir="${item.is_dir}" onclick="toggleSelect(this, '${item.full_path}')">
+                <div class="file-name" ondblclick="openItem('${item.full_path}', ${item.is_dir})">
+                    <span class="${item.is_dir ? 'folder' : 'file'}">${item.is_dir ? '📁' : '📄'}</span>
+                    <span>${item.name}</span>
+                    ${!item.is_dir ? `<span class="file-size">${formatSize(item.size)}</span>` : ''}
+                </div>
+                <div>
+                    <button class="btn-sm" onclick="event.stopPropagation();deleteItem('${item.full_path}')">删除</button>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('statusBar').innerHTML = `${items.length} 个项目`;
+        updateBreadcrumb();
+        document.getElementById('currentPathInfo').innerHTML = `当前位置: ${currentPath}`;
+        
+    } catch(e) {
+        container.innerHTML = '<div class="loading">❌ 加载失败</div>';
+        console.error(e);
+    }
+}
+
+function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function updateBreadcrumb() {
+    const parts = currentPath.split('/').filter(p => p);
+    let html = '<a href="#" onclick="goToPath(\'/\')">🏠 根目录</a>';
+    let path = '';
+    parts.forEach(part => {
+        path += '/' + part;
+        html += ` / <a href="#" onclick="goToPath('${path}')">${part}</a>`;
+    });
+    document.getElementById('breadcrumb').innerHTML = html;
+}
+
+function goToPath(path) {
+    currentPath = path;
+    loadFiles();
+}
+
+function openItem(fullPath, isDir) {
+    if (isDir) {
+        currentPath = fullPath;
+        loadFiles();
+    } else {
+        window.open(`/api/fs/download?path=${encodeURIComponent(fullPath)}`, '_blank');
+    }
+}
+
+function toggleSelect(element, path) {
+    element.classList.toggle('selected');
+    const index = selectedItems.indexOf(path);
+    if (index === -1) {
+        selectedItems.push(path);
+    } else {
+        selectedItems.splice(index, 1);
+    }
+}
+
+function createFolder() {
+    document.getElementById('folderName').value = '';
+    document.getElementById('folderModal').style.display = 'flex';
+}
+
+async function createFolderConfirm() {
+    const name = document.getElementById('folderName').value.trim();
+    if (!name) {
+        alert('请输入文件夹名称');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/fs/mkdir', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name, parent_path: currentPath})
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            closeModal('folderModal');
+            loadFiles();
+        } else {
+            alert(result.error || '创建失败');
+        }
+    } catch(e) {
+        alert('创建失败: ' + e.message);
+    }
+}
+
+function uploadFile() {
+    document.getElementById('uploadInput').value = '';
+    document.getElementById('uploadModal').style.display = 'flex';
+}
+
+async function uploadConfirm() {
+    const files = document.getElementById('uploadInput').files;
+    if (files.length === 0) return;
+    
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('path', currentPath);
+        
+        try {
+            const response = await fetch('/api/fs/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (!result.success) {
+                alert('上传失败: ' + (result.error || file.name));
+            }
+        } catch(e) {
+            alert('上传失败: ' + file.name);
+        }
+    }
+    
+    closeModal('uploadModal');
+    loadFiles();
+}
+
+async function deleteSelected() {
+    if (selectedItems.length === 0) {
+        alert('请先选择要删除的项目');
+        return;
+    }
+    
+    if (!confirm(`确定删除 ${selectedItems.length} 个项目吗？`)) return;
+    
+    for (const path of selectedItems) {
+        try {
+            await fetch('/api/fs/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({path: path})
+            });
+        } catch(e) {
+            console.error('删除失败:', path);
+        }
+    }
+    
+    selectedItems = [];
+    loadFiles();
+}
+
+async function deleteItem(path) {
+    if (!confirm('确定删除吗？')) return;
+    
+    try {
+        await fetch('/api/fs/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({path: path})
+        });
+        loadFiles();
+    } catch(e) {
+        alert('删除失败');
+    }
+}
+
+function refreshFiles() {
+    loadFiles();
+}
+
+function mountToPod() {
+    localStorage.setItem('cephMountPath', currentPath);
+    alert(`已选择挂载路径: ${currentPath}\n请在容器调度页面选择此路径挂载`);
+    window.open('/', '_blank');
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// 初始化
+loadFiles();
+
+// 拖拽上传
+document.body.addEventListener('dragover', (e) => e.preventDefault());
+document.body.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+    
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('path', currentPath);
+        await fetch('/api/fs/upload', {method: 'POST', body: formData});
+    }
+    loadFiles();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ceph 网盘管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 90%; margin: 0 auto; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .file-manager { background: white; border-radius: 8px; overflow: hidden; }
+        .toolbar { padding: 15px; border-bottom: 1px solid #eee; display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn { padding: 8px 16px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-danger { background: #dc3545; }
+        .btn-success { background: #28a745; }
+        .file-list { min-height: 500px; }
+        .file-item { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .file-item:hover { background: #f5f5f5; }
+        .file-item.selected { background: #e6f7ff; }
+        .file-name { display: flex; align-items: center; gap: 10px; }
+        .file-size { color: #999; font-size: 12px; margin-left: 10px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 400px; }
+        .modal input { width: 100%; padding: 8px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; }
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .status-bar { padding: 10px 15px; background: #f8f9fa; border-top: 1px solid #eee; font-size: 12px; color: #666; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>💾 Ceph 分布式存储网盘</h2>
+        <p id="storageInfo">加载中...</p>
+    </div>
+
+    <div class="file-manager">
+        <div class="toolbar">
+            <button class="btn" onclick="showUpload()">📤 上传文件</button>
+            <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
+            <button class="btn" onclick="refreshFiles()">🔄 刷新</button>
+            <button class="btn btn-success" onclick="mountToPod()">🔗 挂载到容器</button>
+        </div>
+        <div class="file-list" id="fileList">
+            <div class="loading">加载中...</div>
+        </div>
+        <div class="status-bar">
+            <span id="fileCount">-</span>
+        </div>
+    </div>
+</div>
+
+<!-- 上传模态框 -->
+<div id="uploadModal" class="modal">
+    <div class="modal-content">
+        <h3>📤 上传文件</h3>
+        <input type="file" id="uploadInput" multiple>
+        <div class="modal-buttons">
+            <button class="btn" onclick="uploadFiles()">上传</button>
+            <button class="btn btn-danger" onclick="closeModal('uploadModal')">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedFiles = [];
+
+async function loadFiles() {
+    const container = document.getElementById('fileList');
+    container.innerHTML = '<div class="loading">加载中...</div>';
+    
+    try {
+        const response = await fetch('/api/ceph/files');
+        const data = await response.json();
+        
+        if (data.error) {
+            container.innerHTML = `<div class="loading">❌ ${data.error}</div>`;
+            return;
+        }
+        
+        const files = data.files || [];
+        
+        if (files.length === 0) {
+            container.innerHTML = '<div class="loading">📂 暂无文件</div>';
+            document.getElementById('fileCount').innerText = '0 个文件';
+            return;
+        }
+        
+        container.innerHTML = files.map(file => `
+            <div class="file-item" data-name="${file.name}" onclick="toggleSelect(this, '${file.name}')">
+                <div class="file-name">
+                    <span>📄 ${file.name}</span>
+                    <span class="file-size">${formatSize(file.size)}</span>
+                    <span style="color:#999;font-size:11px;">${file.mtime || ''}</span>
+                </div>
+                <div>
+                    <button onclick="event.stopPropagation();downloadFile('${file.name}')">下载</button>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('fileCount').innerText = `${files.length} 个文件`;
+        loadStatus();
+        
+    } catch(e) {
+        container.innerHTML = '<div class="loading">❌ 加载失败，请刷新重试</div>';
+        console.error(e);
+    }
+}
+
+async function loadStatus() {
+    try {
+        const response = await fetch('/api/ceph/status');
+        const data = await response.json();
+        if (data.pool) {
+            const sizeMB = (data.pool.num_bytes / 1024 / 1024).toFixed(2);
+            document.getElementById('storageInfo').innerHTML = `📊 存储池: ${data.pool.name} | 文件数: ${data.pool.num_objects} | 已用: ${sizeMB} MB`;
+        }
+    } catch(e) {}
+}
+
+function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function toggleSelect(element, name) {
+    element.classList.toggle('selected');
+    const index = selectedFiles.indexOf(name);
+    if (index === -1) {
+        selectedFiles.push(name);
+    } else {
+        selectedFiles.splice(index, 1);
+    }
+}
+
+function showUpload() {
+    document.getElementById('uploadInput').value = '';
+    document.getElementById('uploadModal').style.display = 'flex';
+}
+
+async function uploadFiles() {
+    const files = document.getElementById('uploadInput').files;
+    if (files.length === 0) return;
+    
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch('/api/ceph/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (!result.success) {
+                alert('上传失败: ' + (result.error || file.name));
+            }
+        } catch(e) {
+            alert('上传失败: ' + file.name);
+        }
+    }
+    
+    closeModal('uploadModal');
+    loadFiles();
+}
+
+async function deleteSelected() {
+    if (selectedFiles.length === 0) {
+        alert('请先选择要删除的文件');
+        return;
+    }
+    
+    if (!confirm(`确定删除 ${selectedFiles.length} 个文件吗？`)) return;
+    
+    for (const name of selectedFiles) {
+        try {
+            await fetch(`/api/ceph/delete?filename=${encodeURIComponent(name)}`, {
+                method: 'DELETE'
+            });
+        } catch(e) {
+            console.error('删除失败:', name);
+        }
+    }
+    
+    selectedFiles = [];
+    loadFiles();
+}
+
+function downloadFile(name) {
+    window.open(`/api/ceph/download?filename=${encodeURIComponent(name)}`, '_blank');
+}
+
+function refreshFiles() {
+    loadFiles();
+}
+
+function mountToPod() {
+    alert('请在容器调度页面添加存储挂载，选择 PVC 类型为 "cephfs-pvc"');
+    window.open('/', '_blank');
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// 初始化
+loadFiles();
+
+// 拖拽上传
+document.body.addEventListener('dragover', (e) => {
+    e.preventDefault();
+});
+
+document.body.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+    
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        await fetch('/api/ceph/upload', {
+            method: 'POST',
+            body: formData
+        });
+    }
+    loadFiles();
+});
+</script>
+</body>
+</html>

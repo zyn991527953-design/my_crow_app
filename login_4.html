@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>K8s Manager - 登录</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #dce2ec;
+            /* 柔光晕，不刺眼 */
+            background-image: radial-gradient(circle at 20% 50%, rgba(74, 144, 226, 0.08) 0%, transparent 50%),
+                              radial-gradient(circle at 80% 50%, rgba(74, 144, 226, 0.06) 0%, transparent 50%);
+            padding: 24px;
+        }
+
+        /* 卡片 */
+        .login-container {
+            display: flex;
+            width: 960px;
+            max-width: 100%;
+            min-height: 560px;
+            background: #f2f5fa;
+            border-radius: 28px;
+            box-shadow: 0 20px 60px -12px rgba(20, 30, 50, 0.25),
+                        0 4px 18px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            transition: box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .login-container:hover {
+            box-shadow: 0 28px 80px -16px rgba(20, 30, 50, 0.30);
+        }
+
+        /* ===== 左侧品牌区 ===== */
+        .login-left {
+            flex: 0 0 380px;
+            background: linear-gradient(145deg, #d5dee9 0%, #c8d3e2 100%);
+            padding: 48px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .login-left::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(74, 144, 226, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .login-left .brand {
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-left .brand .logo-icon {
+            font-size: 44px;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .login-left .brand h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e2a3a;
+            letter-spacing: -0.3px;
+        }
+
+        .login-left .brand h1 span {
+            color: #2d6fb0;
+        }
+
+        .login-left .brand p {
+            color: #3a4a60;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-top: 8px;
+            opacity: 0.85;
+        }
+
+        .login-left .feature-list {
+            position: relative;
+            z-index: 1;
+            margin-top: 32px;
+        }
+
+        .login-left .feature-list .item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #1e2a3a;
+            font-size: 14px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .login-left .feature-list .item:last-child {
+            border-bottom: none;
+        }
+
+        .login-left .feature-list .item .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #2d6fb0;
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
+        .login-left .footer-info {
+            position: relative;
+            z-index: 1;
+            color: #4a5a70;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        /* ===== 右侧登录区 ===== */
+        .login-right {
+            flex: 1;
+            padding: 52px 48px;
+            background: #f2f5fa;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .login-right .welcome {
+            margin-bottom: 28px;
+        }
+
+        .login-right .welcome h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1e2a3a;
+            letter-spacing: -0.2px;
+        }
+
+        .login-right .welcome p {
+            color: #4a5a70;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .login-right .input-group {
+            margin-bottom: 18px;
+        }
+
+        .login-right .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #2d3a50;
+            margin-bottom: 4px;
+        }
+
+        .login-right .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid #cad2de;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #f7f9fc;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+            color: #1a2634;
+        }
+
+        .login-right .input-group input:focus {
+            border-color: #2d6fb0;
+            box-shadow: 0 0 0 3px rgba(45, 111, 176, 0.10);
+            background: #ffffff;
+        }
+
+        .login-right .input-group input::placeholder {
+            color: #8a9bb0;
+        }
+
+        .login-right .options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #4a5a70;
+            margin: 6px 0 24px 0;
+        }
+
+        .login-right .options a {
+            color: #2d6fb0;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .login-right .options a:hover {
+            text-decoration: underline;
+        }
+
+        .login-right .login-btn {
+            width: 100%;
+            padding: 13px;
+            background: #2d6fb0;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 14px rgba(45, 111, 176, 0.25);
+        }
+
+        .login-right .login-btn:hover {
+            background: #235a94;
+        }
+
+        .login-right .login-btn:active {
+            transform: scale(0.97);
+        }
+
+        .login-right .error-msg {
+            color: #c0392b;
+            text-align: center;
+            font-size: 13px;
+            margin-top: 14px;
+            min-height: 20px;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 820px) {
+            .login-container {
+                flex-direction: column;
+                max-width: 400px;
+                min-height: auto;
+                border-radius: 24px;
+            }
+
+            .login-left {
+                flex: 0 0 auto;
+                padding: 32px 28px;
+                min-height: 160px;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            }
+
+            .login-left .feature-list {
+                display: none;
+            }
+
+            .login-left .footer-info {
+                margin-top: 8px;
+            }
+
+            .login-right {
+                padding: 32px 28px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 12px;
+            }
+            .login-container {
+                border-radius: 20px;
+            }
+            .login-right {
+                padding: 24px 18px;
+            }
+            .login-left {
+                padding: 24px 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+
+    <!-- 左侧品牌区 -->
+    <div class="login-left">
+        <div class="brand">
+            <span class="logo-icon">☸️</span>
+            <h1>K8s <span>DevOps 集成中台</span></h1>
+            <p>集群运维 · 开发测试<br>一站式管理平台</p>
+        </div>
+
+        <div class="feature-list">
+            <div class="item"><span class="dot"></span> 多集群统一管理</div>
+            <div class="item"><span class="dot"></span> 容器调度与编排</div>
+            <div class="item"><span class="dot"></span> 镜像仓库 &amp; CI/CD</div>
+            <div class="item"><span class="dot"></span> 实时监控 &amp; 日志</div>
+        </div>
+
+        <div class="footer-info">© 2026 东方算芯 · ecosda</div>
+    </div>
+
+    <!-- 右侧登录表单 -->
+    <div class="login-right">
+        <div class="welcome">
+            <h2>欢迎回来</h2>
+            <p>请输入您的账号信息登录</p>
+        </div>
+
+        <div class="input-group">
+            <label>用户名</label>
+            <input type="text" id="username" placeholder="请输入用户名" value="zhangyunan">
+        </div>
+
+        <div class="input-group">
+            <label>密码</label>
+            <input type="password" id="password" placeholder="请输入密码" value="zhangyunan@123">
+        </div>
+
+        <div class="options">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" checked> 记住我
+            </label>
+            <a href="#">忘记密码？</a>
+        </div>
+
+        <button class="login-btn" onclick="login()">登 录</button>
+        <div id="error" class="error-msg"></div>
+    </div>
+
+</div>
+
+<script>
+    async function login() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+
+        if (!username || !password) {
+            document.getElementById('error').textContent = '请输入用户名和密码';
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+
+            if (data.code === 0) {
+                localStorage.setItem('token', data.data.token);
+                localStorage.setItem('user', JSON.stringify(data.data.user));
+                window.location.href = '/index.html';
+            } else {
+                document.getElementById('error').textContent = data.message || '登录失败';
+            }
+        } catch (e) {
+            document.getElementById('error').textContent = '网络错误，请稍后重试';
+        }
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') login();
+    });
+</script>
+
+</body>
+</html>

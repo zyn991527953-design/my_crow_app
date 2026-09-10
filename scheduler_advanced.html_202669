@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>容器调度 - 增强版1</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; }
+
+        .resource-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+        .resource-card { background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .resource-card h4 { color: #606266; margin-bottom: 12px; font-size: 14px; }
+        .resource-value { font-size: 28px; font-weight: 600; color: #303133; }
+        .resource-unit { font-size: 14px; color: #909399; margin-left: 4px; }
+        .resource-bar { margin-top: 8px; height: 8px; background: #e4e7ed; border-radius: 4px; overflow: hidden; }
+        .resource-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .fill-cpu { background: #409eff; }
+        .fill-memory { background: #67c23a; }
+        .fill-pod { background: #e6a23c; }
+        .fill-node { background: #909399; }
+
+        .node-rank { background: white; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+        .node-rank-title { padding: 12px 16px; background: #f8f9fa; border-bottom: 1px solid #e4e7ed; font-weight: 600; }
+        .node-rank-table { width: 100%; border-collapse: collapse; }
+        .node-rank-table th, .node-rank-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #ebeef5; }
+        .node-rank-table th { background: #fafafa; color: #606266; font-weight: 500; font-size: 13px; }
+        .node-rank-table tr:hover { background: #f5f7fa; }
+        .rank-progress { width: 100px; height: 6px; background: #e4e7ed; border-radius: 3px; overflow: hidden; display: inline-block; margin-left: 8px; }
+        .rank-progress-fill { height: 100%; background: #409eff; border-radius: 3px; }
+
+        .tabs { display: flex; gap: 5px; border-bottom: 2px solid #e4e7ed; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { padding: 12px 24px; background: none; border: none; cursor: pointer; font-size: 14px; color: #606266; }
+        .tab-btn:hover { color: #409eff; }
+        .tab-btn.active { color: #409eff; border-bottom: 2px solid #409eff; margin-bottom: -2px; }
+        .tab-content { display: none; background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .tab-content.active { display: block; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; color: #303133; }
+        .form-control { width: 100%; padding: 10px 12px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 14px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #409eff; color: white; }
+        .btn-primary:hover { background: #66b1ff; }
+        .btn-secondary { background: #909399; color: white; }
+        .item-list { margin-top: 10px; border: 1px solid #ebeef5; border-radius: 4px; }
+        .list-item { padding: 10px 12px; border-bottom: 1px solid #ebeef5; display: flex; justify-content: space-between; align-items: center; }
+        .remove-btn { color: #f56c6c; cursor: pointer; }
+        .deploy-btn { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e4e7ed; }
+        .deploy-btn button { padding: 14px 40px; font-size: 16px; }
+
+        .image-search-container { position: relative; }
+        .image-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #dcdfe6; border-radius: 4px; max-height: 300px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        .image-dropdown div { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .image-dropdown div:hover { background: #f5f7fa; }
+        .tag-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; max-height: 120px; overflow-y: auto; }
+        .tag-item { padding: 4px 12px; background: #ecf5ff; color: #409eff; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .tag-item:hover, .tag-item.selected { background: #409eff; color: white; }
+        .selected-info { margin-top: 8px; padding: 8px 12px; background: #f0f9eb; border-radius: 4px; color: #67c23a; font-size: 13px; }
+
+        .slider-container { display: flex; align-items: center; gap: 15px; }
+        .slider { flex: 1; height: 6px; -webkit-appearance: none; background: #e4e7ed; border-radius: 3px; outline: none; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: #409eff; border-radius: 50%; cursor: pointer; }
+        .slider-value { min-width: 40px; text-align: center; padding: 4px 8px; background: #ecf5ff; border-radius: 4px; color: #409eff; font-weight: 500; }
+
+        .resource-selector { display: flex; align-items: center; gap: 10px; }
+        .resource-input { flex: 1; }
+        .resource-unit-select { width: 80px; }
+
+        .node-selector { max-height: 200px; overflow-y: auto; border: 1px solid #e4e7ed; border-radius: 4px; }
+        .node-option { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .node-option:hover { background: #f5f7fa; }
+        .node-option.selected { background: #ecf5ff; color: #409eff; }
+
+        .stats-row { display: flex; gap: 12px; margin-top: 8px; font-size: 12px; color: #909399; }
+        .stats-item { display: flex; align-items: center; gap: 4px; }
+        .loading { text-align: center; padding: 20px; color: #909399; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 资源卡片 -->
+    <div class="resource-cards" id="resourceCards">
+        <div class="resource-card"><h4>📊 CPU 总量</h4><div><span class="resource-value" id="totalCpu">-</span><span class="resource-unit">核</span></div><div class="resource-bar"><div class="resource-bar-fill fill-cpu" id="cpuBar" style="width:0%"></div></div><div class="stats-row"><span class="stats-item">已用: <span id="usedCpu">-</span>核</span><span class="stats-item">剩余: <span id="freeCpu">-</span>核</span></div></div>
+        <div class="resource-card"><h4>💾 内存总量</h4><div><span class="resource-value" id="totalMemory">-</span><span class="resource-unit">GB</span></div><div class="resource-bar"><div class="resource-bar-fill fill-memory" id="memoryBar" style="width:0%"></div></div><div class="stats-row"><span class="stats-item">已用: <span id="usedMemory">-</span>GB</span><span class="stats-item">剩余: <span id="freeMemory">-</span>GB</span></div></div>
+        <div class="resource-card"><h4>📦 Pod 总数</h4><div><span class="resource-value" id="totalPods">-</span><span class="resource-unit">个</span></div><div class="resource-bar"><div class="resource-bar-fill fill-pod" id="podBar" style="width:0%"></div></div><div class="stats-row"><span class="stats-item">运行中: <span id="runningPods">-</span></span><span class="stats-item">待处理: <span id="pendingPods">-</span></span></div></div>
+        <div class="resource-card"><h4>🖥️ 节点总数</h4><div><span class="resource-value" id="totalNodes">-</span><span class="resource-unit">个</span></div><div class="resource-bar"><div class="resource-bar-fill fill-node" id="nodeBar" style="width:0%"></div></div><div class="stats-row"><span class="stats-item">就绪: <span id="readyNodes">-</span></span><span class="stats-item">离线: <span id="offlineNodes">-</span></span></div></div>
+    </div>
+
+    <!-- 节点资源排行 -->
+    <div class="node-rank">
+        <div class="node-rank-title">🏆 节点资源排行（按剩余CPU排序）</div>
+        <table class="node-rank-table" id="nodeRankTable">
+            <thead><tr><th>节点名称</th><th>状态</th><th>CPU使用率</th><th>内存使用率</th><th>Pod数量</th><th>剩余CPU</th><th>剩余内存</th></tr></thead>
+            <tbody id="nodeRankBody"></tbody>
+        </table>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('basic')">📋 基本配置</button>
+        <button class="tab-btn" onclick="switchTab('storage')">💾 存储挂载</button>
+        <button class="tab-btn" onclick="switchTab('gpu')">🎮 GPU配置</button>
+        <button class="tab-btn" onclick="switchTab('network')">🌐 网络配置</button>
+        <button class="tab-btn" onclick="switchTab('yaml')">📝 YAML编辑</button>
+    </div>
+
+    <div id="basicTab" class="tab-content active">
+        <div class="row">
+            <div class="form-group">
+                <label>部署名称</label>
+                <input type="text" id="deployName" class="form-control" placeholder="自动生成">
+            </div>
+            <div class="form-group">
+                <label>命名空间</label>
+                <select id="namespaceSelect" class="form-control"></select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>选择镜像</label>
+            <div class="image-search-container">
+                <input type="text" id="imageSearch" class="form-control" placeholder="🔍 点击下拉显示所有镜像，或输入搜索..." autocomplete="off">
+                <div id="imageDropdown" class="image-dropdown"></div>
+            </div>
+            <div id="tagGroup" class="tag-group"></div>
+            <div id="selectedInfo" class="selected-info" style="display:none;"></div>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>副本数: <span id="replicasValue">1</span></label>
+                <div class="slider-container">
+                    <input type="range" id="replicasSlider" class="slider" min="1" max="10" value="1" step="1">
+                    <span class="slider-value" id="replicasDisplay">1</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>启动命令</label>
+                <input type="text" id="startCommand" class="form-control" placeholder="例如: python app.py">
+            </div>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>CPU (核心)</label>
+                <div class="resource-selector">
+                    <input type="number" id="cpuCores" class="form-control resource-input" value="0.1" step="0.1" min="0.1">
+                    <span class="stats-item">可用: <span id="availableCpu">-</span>核</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>内存</label>
+                <div class="resource-selector">
+                    <input type="number" id="memoryMB" class="form-control resource-input" value="8" step="8" min="4">
+                    <select id="memoryUnit" class="form-control resource-unit-select" style="width:80px">
+                        <option value="Mi">MB</option>
+                        <option value="Gi">GB</option>
+                    </select>
+                    <span class="stats-item">可用: <span id="availableMemory">-</span>MB</span>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>选择节点（点击选择，支持多选）</label>
+            <div id="nodeSelector" class="node-selector"></div>
+            <div id="selectedNodesInfo" style="margin-top:8px; font-size:12px; color:#909399;"></div>
+        </div>
+    </div>
+
+    <!-- 存储挂载 Tab - 使用网盘目录 -->
+    <div id="storageTab" class="tab-content">
+        <div class="form-group">
+            <label>选择网盘目录</label>
+            <div class="row">
+                <select id="cephDirectorySelect" class="form-control" style="width:70%">
+                    <option value="">-- 加载中... --</option>
+                </select>
+                <button class="btn btn-secondary" onclick="loadDirectories()">🔄 刷新</button>
+            </div>
+            <small>从 Ceph 网盘中选择要挂载的目录</small>
+        </div>
+        <div class="form-group">
+            <label>挂载路径（容器内）</label>
+            <div class="row">
+                <input type="text" id="mountPath" class="form-control" placeholder="/data" style="width:70%">
+                <button class="btn btn-primary" onclick="addVolumeMount()">添加挂载</button>
+            </div>
+            <small>容器内的挂载路径，如 /data、/mnt/storage</small>
+        </div>
+        <div id="volumeMountsList" class="item-list"></div>
+    </div>
+
+    <div id="gpuTab" class="tab-content">
+        <div class="form-group">
+            <label><input type="checkbox" id="enableGPU" onchange="toggleGPU()"> 启用 GPU (HAMI)</label>
+        </div>
+        <div id="gpuConfig" style="display:none;">
+            <div class="row">
+                <div class="form-group">
+                    <label>GPU 数量</label>
+                    <input type="number" id="gpuCount" value="1" step="0.5" min="0.1" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>GPU 内存 (MB)</label>
+                    <input type="number" id="gpuMemory" class="form-control" placeholder="不限制">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="networkTab" class="tab-content">
+        <div class="form-group">
+            <label>端口映射</label>
+            <div class="row">
+                <input type="number" id="containerPort" class="form-control" placeholder="容器端口" style="width:30%">
+                <input type="number" id="hostPort" class="form-control" placeholder="主机端口(可选)" style="width:30%">
+                <select id="protocol" class="form-control" style="width:20%">
+                    <option value="TCP">TCP</option>
+                    <option value="UDP">UDP</option>
+                </select>
+                <button class="btn btn-primary" onclick="addPortMapping()">添加</button>
+            </div>
+        </div>
+        <div id="portsList" class="item-list"></div>
+
+        <div class="form-group" style="margin-top:20px">
+            <label>环境变量</label>
+            <div class="row">
+                <input type="text" id="envName" class="form-control" placeholder="变量名" style="width:40%">
+                <input type="text" id="envValue" class="form-control" placeholder="变量值" style="width:40%">
+                <button class="btn btn-primary" onclick="addEnvVar()">添加</button>
+            </div>
+        </div>
+        <div id="envVarsList" class="item-list"></div>
+    </div>
+
+    <div id="yamlTab" class="tab-content">
+        <div class="form-group">
+            <label>直接编辑 YAML</label>
+            <textarea id="yamlEditor" rows="10" class="form-control" style="font-family:monospace;" placeholder="粘贴 Kubernetes Deployment YAML..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>或上传 YAML 文件</label>
+            <input type="file" id="yamlFile" accept=".yaml,.yml" onchange="loadYAMLFile()">
+        </div>
+    </div>
+
+    <div class="deploy-btn">
+        <button class="btn btn-primary" onclick="deploy()">🚀 部署容器</button>
+    </div>
+</div>
+
+<script>
+let allImages = [];
+let selectedFullImage = '';
+let volumeMounts = [];
+let portMappings = [];
+let envVars = [];
+let allNodes = [];
+let selectedNodes = [];
+
+// ========== 资源统计 ==========
+async function loadClusterResources() {
+    try {
+        const [nodes, pods] = await Promise.all([
+            fetch('/api/nodes').then(r => r.json()),
+            fetch('/api/pods').then(r => r.json())
+        ]);
+        allNodes = nodes;
+        let totalCpu = 0, usedCpu = 0, totalMem = 0, usedMem = 0;
+        let nodeDetails = [];
+        nodes.forEach(node => {
+            const cpuTotal = node.cpu || 0;
+            const cpuUsed = node.cpuUsed || 0;
+            const memTotal = node.memoryTotal || 0;
+            const memUsed = node.memoryUsed || 0;
+            totalCpu += cpuTotal;
+            usedCpu += cpuUsed;
+            totalMem += memTotal;
+            usedMem += memUsed;
+            nodeDetails.push({
+                name: node.name, status: node.status,
+                cpuTotal, cpuUsed, memoryTotal: memTotal, memoryUsed: memUsed,
+                cpuPercent: node.cpuPercent || 0, memoryPercent: node.memoryPercent || 0,
+                podCount: node.podCount || 0
+            });
+        });
+        const freeCpu = totalCpu - usedCpu;
+        const freeMem = totalMem - usedMem;
+        const readyNodes = nodes.filter(n => n.status === 'Ready').length;
+        const runningPods = pods.filter(p => p.status === 'Running').length;
+        const pendingPods = pods.filter(p => p.status === 'Pending').length;
+        document.getElementById('totalCpu').innerText = totalCpu.toFixed(1);
+        document.getElementById('usedCpu').innerText = usedCpu.toFixed(1);
+        document.getElementById('freeCpu').innerText = freeCpu.toFixed(1);
+        document.getElementById('cpuBar').style.width = totalCpu > 0 ? (usedCpu / totalCpu * 100) + '%' : '0%';
+        const totalMemGB = totalMem / 1024;
+        const usedMemGB = usedMem / 1024;
+        const freeMemGB = freeMem / 1024;
+        document.getElementById('totalMemory').innerText = totalMemGB.toFixed(1);
+        document.getElementById('usedMemory').innerText = usedMemGB.toFixed(1);
+        document.getElementById('freeMemory').innerText = freeMemGB.toFixed(1);
+        document.getElementById('memoryBar').style.width = totalMem > 0 ? (usedMem / totalMem * 100) + '%' : '0%';
+        document.getElementById('totalPods').innerText = pods.length;
+        document.getElementById('runningPods').innerText = runningPods;
+        document.getElementById('pendingPods').innerText = pendingPods;
+        document.getElementById('podBar').style.width = pods.length > 0 ? (runningPods / pods.length * 100) + '%' : '0%';
+        document.getElementById('totalNodes').innerText = nodes.length;
+        document.getElementById('readyNodes').innerText = readyNodes;
+        document.getElementById('offlineNodes').innerText = nodes.length - readyNodes;
+        document.getElementById('availableCpu').innerText = freeCpu.toFixed(1);
+        document.getElementById('availableMemory').innerText = Math.floor(freeMem);
+        nodeDetails.sort((a, b) => (b.cpuTotal - b.cpuUsed) - (a.cpuTotal - a.cpuUsed));
+        const tbody = document.getElementById('nodeRankBody');
+        tbody.innerHTML = nodeDetails.map(node => {
+            const freeCpuNode = (node.cpuTotal - node.cpuUsed).toFixed(1);
+            const freeMemNode = Math.floor(node.memoryTotal - node.memoryUsed);
+            return `<tr onclick="toggleNodeSelection('${node.name}')" style="cursor:pointer"><td><strong>${node.name}</strong></td><td><span class="status-badge ${node.status === 'Ready' ? 'status-ready' : 'status-not-ready'}">${node.status}</span></td><td>${node.cpuPercent.toFixed(1)}%<div class="rank-progress"><div class="rank-progress-fill" style="width:${node.cpuPercent}%"></div></div></td><td>${node.memoryPercent.toFixed(1)}%<div class="rank-progress"><div class="rank-progress-fill" style="width:${node.memoryPercent}%"></div></div></td><td>${node.podCount}</td><td>${freeCpuNode}核</td><td>${freeMemNode}MB</td></tr>`;
+        }).join('');
+        renderNodeSelector();
+    } catch(e) { console.error('加载资源失败', e); }
+}
+
+function renderNodeSelector() {
+    const container = document.getElementById('nodeSelector');
+    container.innerHTML = allNodes.map(node => {
+        const memTotal = node.memoryTotal || 0;
+        return `<div class="node-option ${selectedNodes.includes(node.name) ? 'selected' : ''}" onclick="toggleNodeSelection('${node.name}')"><span>🖥️ ${node.name} <span style="color:#909399;font-size:12px;">(${node.status})</span></span><span style="font-size:12px;">CPU: ${node.cpu || 0}核 | 内存: ${Math.floor(memTotal)}MB</span></div>`;
+    }).join('');
+    updateSelectedNodesInfo();
+}
+
+function toggleNodeSelection(nodeName) {
+    const index = selectedNodes.indexOf(nodeName);
+    if (index === -1) selectedNodes.push(nodeName);
+    else selectedNodes.splice(index, 1);
+    renderNodeSelector();
+}
+
+function updateSelectedNodesInfo() {
+    const info = document.getElementById('selectedNodesInfo');
+    if (selectedNodes.length === 0) info.innerHTML = '📌 未选择节点，将自动调度到最佳节点';
+    else if (selectedNodes.length === 1) info.innerHTML = `📌 已选择节点: ${selectedNodes[0]}`;
+    else info.innerHTML = `📌 已选择 ${selectedNodes.length} 个节点（多节点部署）: ${selectedNodes.join(', ')}`;
+}
+
+// ========== 镜像加载 ==========
+async function loadImages1() {
+    const input = document.getElementById('imageSearch');
+    input.value = "⏳ 加载镜像中...";
+    input.disabled = true;
+    try {
+        const response = await fetch('/api/harbor/cached-images');
+        const data = await response.json();
+        allImages = data.map(img => ({ name: img.name, tag: img.tag, full: `192.168.138.139:30002/library/${img.name}:${img.tag}` }));
+        input.value = "";
+        input.placeholder = `🔍 点击显示 ${allImages.length} 个镜像，或输入搜索...`;
+    } catch(e) { input.placeholder = "加载失败，请刷新"; }
+    finally { input.disabled = false; }
+}
+
+
+// 镜像缓存变量（放在 loadImages 函数前面）
+let cachedImagesData = null;
+let cachedImagesTime = 0;
+const CACHE_TTL = 60000; // 60秒缓存
+
+async function loadImages() {
+    const input = document.getElementById('imageSearch');
+    input.value = "⏳ 加载镜像中...";
+    input.disabled = true;
+    
+    // 检查缓存
+    const now = Date.now();
+    if (cachedImagesData && (now - cachedImagesTime) < CACHE_TTL) {
+        allImages = cachedImagesData;
+        input.value = "";
+        input.placeholder = `🔍 点击显示 ${allImages.length} 个镜像 (缓存)`;
+        input.disabled = false;
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/harbor/cached-images');
+        const data = await response.json();
+        allImages = data.map(img => ({ name: img.name, tag: img.tag, full: `192.168.138.139:30002/library/${img.name}:${img.tag}` }));
+        // 存入缓存
+        cachedImagesData = allImages;
+        cachedImagesTime = now;
+        input.value = "";
+        input.placeholder = `🔍 点击显示 ${allImages.length} 个镜像，或输入搜索...`;
+    } catch(e) { 
+        input.placeholder = "加载失败，请刷新";
+    } finally { 
+        input.disabled = false; 
+    }
+}
+
+
+function showAllImages() {
+    const dropdown = document.getElementById('imageDropdown');
+    if (!dropdown) return;
+    const grouped = {};
+    allImages.forEach(img => { if (!grouped[img.name]) grouped[img.name] = []; grouped[img.name].push(img.tag); });
+    dropdown.innerHTML = Object.keys(grouped).slice(0, 50).map(name => `<div onclick="selectImageName('${name.replace(/'/g, "\\'")}')">📦 ${name} <span style="color:#909399;">(${grouped[name].length}个标签)</span></div>`).join('');
+    dropdown.style.display = 'block';
+    setTimeout(() => {
+        document.addEventListener('click', function hideDropdown(e) {
+            if (!e.target.closest('#imageSearch') && !e.target.closest('#imageDropdown')) {
+                dropdown.style.display = 'none';
+                document.removeEventListener('click', hideDropdown);
+            }
+        });
+    }, 100);
+}
+
+document.getElementById('imageSearch')?.addEventListener('focus', function() { if (allImages.length > 0) showAllImages(); });
+document.getElementById('imageSearch')?.addEventListener('input', function(e) {
+    const keyword = e.target.value.toLowerCase();
+    const dropdown = document.getElementById('imageDropdown');
+    if (!keyword) { showAllImages(); return; }
+    const matched = {};
+    allImages.forEach(img => { if (img.name.toLowerCase().includes(keyword)) { if (!matched[img.name]) matched[img.name] = []; matched[img.name].push(img.tag); } });
+    const names = Object.keys(matched);
+    if (names.length === 0) { dropdown.innerHTML = '<div style="padding:10px;">无匹配镜像</div>'; dropdown.style.display = 'block'; return; }
+    dropdown.innerHTML = names.slice(0, 30).map(name => `<div onclick="selectImageName('${name.replace(/'/g, "\\'")}')">📦 ${name} <span style="color:#909399;">(${matched[name].length}个标签)</span></div>`).join('');
+    dropdown.style.display = 'block';
+});
+
+function selectImageName(imageName) {
+    document.getElementById('imageSearch').value = imageName;
+    document.getElementById('imageDropdown').style.display = 'none';
+    const tags = allImages.filter(img => img.name === imageName).map(img => img.tag);
+    document.getElementById('tagGroup').innerHTML = tags.map(tag => `<div class="tag-item" onclick="selectTagFinal('${imageName}', '${tag}')">${tag}</div>`).join('');
+    selectedFullImage = '';
+    document.getElementById('selectedInfo').style.display = 'none';
+}
+
+function selectTagFinal(imageName, tag) {
+    selectedFullImage = `192.168.138.139:30002/library/${imageName}:${tag}`;
+    document.getElementById('imageSearch').value = `${imageName}:${tag}`;
+    document.querySelectorAll('.tag-item').forEach(el => { el.classList.remove('selected'); if (el.innerText === tag) el.classList.add('selected'); });
+    document.getElementById('selectedInfo').innerHTML = `✅ 已选择: ${selectedFullImage}`;
+    document.getElementById('selectedInfo').style.display = 'block';
+}
+
+// ========== 副本数滑块 ==========
+const slider = document.getElementById('replicasSlider');
+const display = document.getElementById('replicasDisplay');
+const valueSpan = document.getElementById('replicasValue');
+slider.addEventListener('input', function() { display.innerText = this.value; valueSpan.innerText = this.value; });
+
+// ========== Tab切换 ==========
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(tabName + 'Tab').classList.add('active');
+}
+
+// ========== 目录挂载 ==========
+async function loadDirectories() {
+    const select = document.getElementById('cephDirectorySelect');
+    select.innerHTML = '<option value="">加载中...</option>';
+    try {
+        const response = await fetch('/api/fs/mounts');
+        const dirs = await response.json();
+        if (dirs.error) { select.innerHTML = '<option value="">加载失败</option>'; return; }
+        select.innerHTML = '<option value="">-- 选择网盘目录 --</option>' + dirs.map(dir => `<option value="${dir.full_path}">📁 ${dir.full_path}</option>`).join('');
+    } catch(e) { select.innerHTML = '<option value="">加载失败</option>'; console.error(e); }
+}
+
+function addVolumeMount() {
+    const dirPath = document.getElementById('cephDirectorySelect').value;
+    const mountPath = document.getElementById('mountPath').value;
+    if (!dirPath || !mountPath) { alert('请选择网盘目录和挂载路径'); return; }
+    if (volumeMounts.some(vm => vm.mountPath === mountPath)) { alert('该挂载路径已存在'); return; }
+    volumeMounts.push({ name: 'cephfs-' + Date.now(), mountPath: mountPath, source: dirPath });
+    renderVolumeMounts();
+    document.getElementById('mountPath').value = '';
+}
+
+function renderVolumeMounts() {
+    const container = document.getElementById('volumeMountsList');
+    if (volumeMounts.length === 0) { container.innerHTML = '<div class="loading">暂无挂载配置</div>'; return; }
+    container.innerHTML = volumeMounts.map((vm, i) => `<div class="list-item"><span>📁 网盘目录 ${vm.source} → 容器路径 ${vm.mountPath}</span><span class="remove-btn" onclick="volumeMounts.splice(${i},1);renderVolumeMounts()">✕</span></div>`).join('');
+}
+
+// ========== 端口映射 ==========
+function addPortMapping() {
+    const containerPort = document.getElementById('containerPort').value;
+    if (!containerPort) { alert('请填写容器端口'); return; }
+    portMappings.push({containerPort: parseInt(containerPort), hostPort: document.getElementById('hostPort').value ? parseInt(document.getElementById('hostPort').value) : undefined, protocol: document.getElementById('protocol').value});
+    renderPortMappings();
+    document.getElementById('containerPort').value = '';
+    document.getElementById('hostPort').value = '';
+}
+
+function renderPortMappings() {
+    const container = document.getElementById('portsList');
+    if (portMappings.length === 0) { container.innerHTML = '<div class="loading">暂无端口映射</div>'; return; }
+    container.innerHTML = portMappings.map((p, i) => `<div class="list-item"><span>🔌 ${p.containerPort}:${p.hostPort || '随机'} (${p.protocol})</span><span class="remove-btn" onclick="portMappings.splice(${i},1);renderPortMappings()">✕</span></div>`).join('');
+}
+
+// ========== 环境变量 ==========
+function addEnvVar() {
+    const name = document.getElementById('envName').value;
+    const value = document.getElementById('envValue').value;
+    if (!name) { alert('请填写变量名'); return; }
+    envVars.push({name, value});
+    renderEnvVars();
+    document.getElementById('envName').value = '';
+    document.getElementById('envValue').value = '';
+}
+
+function renderEnvVars() {
+    const container = document.getElementById('envVarsList');
+    if (envVars.length === 0) { container.innerHTML = '<div class="loading">暂无环境变量</div>'; return; }
+    container.innerHTML = envVars.map((env, i) => `<div class="list-item"><span>🔧 ${env.name}=${env.value}</span><span class="remove-btn" onclick="envVars.splice(${i},1);renderEnvVars()">✕</span></div>`).join('');
+}
+
+function toggleGPU() { document.getElementById('gpuConfig').style.display = document.getElementById('enableGPU').checked ? 'block' : 'none'; }
+function loadYAMLFile() {
+    const file = document.getElementById('yamlFile').files[0];
+    if (file) { const reader = new FileReader(); reader.onload = e => document.getElementById('yamlEditor').value = e.target.result; reader.readAsText(file); }
+}
+
+async function loadNamespaces() {
+    try {
+        const response = await fetch('/api/namespaces');
+        const namespaces = await response.json();
+        document.getElementById('namespaceSelect').innerHTML = namespaces.map(ns => `<option value="${ns.name}">${ns.name}</option>`).join('');
+    } catch(e) { console.error(e); }
+}
+
+// ========== 部署函数 ==========
+async function deploy() {
+    let image = selectedFullImage;
+    if (!image) {
+        const searchValue = document.getElementById('imageSearch').value;
+        if (searchValue && searchValue.includes(':')) {
+            const parts = searchValue.split(':');
+            if (parts.length >= 2) image = `192.168.138.139:30002/library/${parts[0]}:${parts[1]}`;
+        }
+    }
+    if (!image) { alert('请先选择镜像'); return; }
+
+    const replicas = parseInt(document.getElementById('replicasSlider').value);
+    let memoryValue = parseInt(document.getElementById('memoryMB').value);
+    if (document.getElementById('memoryUnit').value === 'Gi') memoryValue = memoryValue * 1024;
+
+    const deployData = {
+        namespace: document.getElementById('namespaceSelect').value,
+        name: document.getElementById('deployName').value || undefined,
+        replicas: replicas,
+        container: { name: 'app', image: image },
+        resources: {
+            requests: { cpu: parseFloat(document.getElementById('cpuCores').value), memory: memoryValue + 'Mi' },
+            limits: { cpu: parseFloat(document.getElementById('cpuCores').value) * 2, memory: memoryValue * 2 + 'Mi' }
+        }
+    };
+
+    const command = document.getElementById('startCommand').value;
+    if (command) deployData.command = command.split(/\s+/);
+    
+    // 存储挂载配置
+       // 存储挂载 - 正确格式（volumes 和 volumeMounts 分开）
+    if (volumeMounts.length > 0) {
+        deployData.volumes = volumeMounts.map(vm => ({
+            name: vm.name,
+            hostPath: {
+                path: "/mnt/cephfs" + vm.source,
+                type: "DirectoryOrCreate"
+            }
+        }));
+        deployData.volumeMounts = volumeMounts.map(vm => ({
+            name: vm.name,
+            mountPath: vm.mountPath
+        }));
+    } 
+    if (document.getElementById('enableGPU').checked) { deployData.gpu = { count: parseFloat(document.getElementById('gpuCount').value) }; if (document.getElementById('gpuMemory').value) deployData.gpu.memory = document.getElementById('gpuMemory').value; }
+    if (portMappings.length > 0) deployData.ports = portMappings;
+    if (envVars.length > 0) deployData.env = envVars;
+    if (selectedNodes.length > 1) deployData.multiNode = { enabled: true, nodes: selectedNodes, replicasPerNode: Math.ceil(replicas / selectedNodes.length) };
+    else if (selectedNodes.length === 1) deployData.nodeName = selectedNodes[0];
+
+    try {
+        const response = await fetch('/api/advanced-deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(deployData) });
+        const result = await response.json();
+        if (response.ok) {
+            alert('✅ 部署成功！\n镜像: ' + image + '\n副本数: ' + replicas);
+            document.getElementById('deployName').value = '';
+            document.getElementById('selectedInfo').style.display = 'none';
+            document.getElementById('tagGroup').innerHTML = '';
+            document.getElementById('imageSearch').value = '';
+            selectedFullImage = '';
+            selectedNodes = [];
+            volumeMounts = [];
+            renderVolumeMounts();
+            renderNodeSelector();
+        } else alert('❌ 部署失败: ' + JSON.stringify(result));
+    } catch(e) { alert('❌ 部署失败: ' + e.message); }
+}
+
+// 在 scheduler_advanced.html 的 script 中添加
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'selectImage') {
+        const imageName = event.data.imageName;
+        console.log('收到镜像选择请求:', imageName);
+        
+        // 等待镜像列表加载完成后选中
+        const checkInterval = setInterval(() => {
+            if (allImages.length > 0) {
+                clearInterval(checkInterval);
+                // 查找匹配的镜像
+                const matchedImage = allImages.find(img => img.name === imageName);
+                if (matchedImage) {
+                    selectImageName(imageName);
+                    // 自动选择第一个标签
+                    setTimeout(() => {
+                        const firstTag = document.querySelector('.tag-item');
+                        if (firstTag) {
+                            firstTag.click();
+                        }
+                    }, 200);
+                } else {
+                    // 如果没找到，设置搜索框值
+                    document.getElementById('imageSearch').value = imageName;
+                }
+            }
+        }, 200);
+        
+        // 10秒超时
+        setTimeout(() => clearInterval(checkInterval), 10000);
+    }
+});
+
+
+// ========== 初始化 ==========
+loadImages();
+loadNamespaces();
+loadClusterResources();
+setInterval(loadClusterResources, 30000);
+// 初始化目录列表
+setTimeout(() => { loadDirectories(); }, 1000);
+</script>
+</body>
+</html>

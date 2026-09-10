@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>私有链管理</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 24px;
+            color: #303133;
+        }
+        .page-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header h1 span {
+            background: #409eff;
+            color: white;
+            font-size: 14px;
+            padding: 2px 12px;
+            border-radius: 12px;
+        }
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary { background: #409eff; color: white; }
+        .btn-primary:hover { background: #66b1ff; }
+        .btn-success { background: #67c23a; color: white; }
+        .btn-success:hover { background: #85ce61; }
+        .btn-danger { background: #f56c6c; color: white; }
+        .btn-danger:hover { background: #f78989; }
+        .btn-warning { background: #e6a23c; color: white; }
+        .btn-warning:hover { background: #ebb563; }
+        .btn-outline { background: transparent; border: 1px solid #dcdfe6; color: #606266; }
+        .btn-outline:hover { background: #f5f7fa; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #e4e7ed;
+        }
+        .stat-card .label {
+            font-size: 13px;
+            color: #909399;
+            margin-bottom: 6px;
+        }
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #303133;
+        }
+        .stat-card .sub {
+            font-size: 13px;
+            color: #909399;
+            margin-top: 4px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid #e4e7ed;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel-title .badge {
+            background: #e4e7ed;
+            color: #606266;
+            font-size: 12px;
+            padding: 0 8px;
+            border-radius: 10px;
+            font-weight: normal;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: #606266;
+        }
+        .form-group .input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        .form-group .input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #409eff;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .flex-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            text-align: left;
+            padding: 12px 10px;
+            background: #f5f7fa;
+            color: #606266;
+            font-weight: 600;
+            border-bottom: 2px solid #e4e7ed;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ebeef5;
+        }
+        tr:hover td { background: #f5f7fa; }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-badge.running { background: #e8f5e9; color: #2e7d32; }
+        .status-badge.stopped { background: #ffebee; color: #c62828; }
+        .status-badge.unknown { background: #fff3e0; color: #e65100; }
+        .hash-text {
+            font-family: monospace;
+            font-size: 12px;
+            color: #409eff;
+            cursor: pointer;
+            word-break: break-all;
+        }
+        .hash-text:hover { text-decoration: underline; }
+        .empty-state { text-align: center; padding: 30px; color: #909399; }
+
+        /* 模态框（简化版） */
+        .modal-mask {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-mask.active { display: flex; }
+        .modal-box {
+            background: white;
+            border-radius: 8px;
+            width: 600px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        .modal-box .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .modal-box .modal-close {
+            cursor: pointer;
+            font-size: 22px;
+            color: #909399;
+        }
+        .modal-box .modal-close:hover { color: #f56c6c; }
+        .modal-box .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+            border-top: 1px solid #e4e7ed;
+            padding-top: 16px;
+        }
+        pre {
+            background: #f5f7fa;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .loading { opacity: 0.6; pointer-events: none; }
+    </style>
+</head>
+<script>
+    // 如果在 iframe 中，且父页面也是 blockchain_manager，则阻止加载
+    if (window.top !== window.self) {
+        if (window.top.location.pathname.includes('blockchain_manager.html')) {
+            document.body.innerHTML = '<h2 style="color:#f56c6c;padding:40px;text-align:center;">⚠️ 页面已加载</h2>';
+            throw new Error('阻止套娃');
+        }
+    }
+</script>
+<body>
+<div class="page-container">
+    <div class="header">
+        <h1>
+            ⛓️ 私有链管理
+            <span id="chainStatusBadge">检查中...</span>
+        </h1>
+        <div class="actions">
+            <button class="btn btn-primary" onclick="refreshAll()">🔄 刷新</button>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="label">区块高度</div>
+            <div class="value" id="statBlock">-</div>
+            <div class="sub" id="statBlockTime">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">挖矿状态</div>
+            <div class="value" id="statMining">-</div>
+            <div class="sub" id="statMiningSub">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">节点数</div>
+            <div class="value" id="statPeers">-</div>
+            <div class="sub">对等节点</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">账户数</div>
+            <div class="value" id="statAccounts">-</div>
+            <div class="sub" id="statAccountsSub">-</div>
+        </div>
+    </div>
+
+    <!-- 挖矿控制 + 账户管理 -->
+    <div class="panel">
+        <div class="panel-title">⚙️ 挖矿控制 & 账户管理</div>
+        <div class="flex-row" style="flex-wrap: wrap; gap: 16px;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="btn btn-success" onclick="startMining()">▶️ 启动挖矿</button>
+                <button class="btn btn-danger" onclick="stopMining()">⏹️ 停止挖矿</button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; margin-left: auto;">
+                <button class="btn btn-primary" onclick="loadAccounts()">👤 刷新账户</button>
+                <select id="accountSelect" style="padding:6px 10px; border:1px solid #dcdfe6; border-radius:4px; min-width:180px;"></select>
+                <button class="btn btn-warning" onclick="showUnlockModal()">🔓 解锁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发送交易 -->
+    <div class="panel">
+        <div class="panel-title">📤 发送交易</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>发送账户 (from)</label>
+                <select id="txFrom" class="input"></select>
+            </div>
+            <div class="form-group">
+                <label>接收账户 (to) <span style="color:#909399;font-weight:normal;">（留空则发给自己）</span></label>
+                <input id="txTo" class="input" placeholder="0x... 或留空">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>数据 (文本内容)</label>
+            <input id="txData" class="input" placeholder="要上链的文本内容">
+        </div>
+        <button class="btn btn-primary" onclick="sendTransaction()">📨 发送交易</button>
+        <span id="txResult" style="margin-left: 16px; color: #67c23a;"></span>
+    </div>
+
+<!-- 写入存证 -->
+<div class="panel">
+    <div class="panel-title">📝 写入存证</div>
+    <div class="form-group">
+        <label>存证内容</label>
+        <input id="writeData" class="input" placeholder="输入存证内容">
+    </div>
+    <button class="btn btn-primary" onclick="writeEvidence()">📝 写入存证</button>
+    <span id="writeResult" style="margin-left: 16px; color: #67c23a;"></span>
+</div>
+
+    <!-- 交易查询 -->
+    <div class="panel">
+        <div class="panel-title">🔍 交易查询</div>
+        <div class="flex-row">
+            <div class="form-group" style="flex:1;">
+                <label>交易哈希</label>
+                <input id="txHashInput" class="input" placeholder="0x...">
+            </div>
+            <button class="btn btn-primary" onclick="queryTransaction()" style="margin-bottom:14px;">查询</button>
+        </div>
+        <div id="txDetail" style="margin-top:8px; font-size:13px; background:#f5f7fa; padding:12px; border-radius:4px; display:none;"></div>
+    </div>
+
+    <!-- 存证记录 -->
+    <div class="panel">
+        <div class="panel-title">
+            📋 存证记录
+            <span class="badge" id="recordCount">0</span>
+            <button class="btn btn-outline" style="margin-left:auto;" onclick="loadRecords()">🔄 刷新</button>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>区块</th><th>类型</th><th>内容 / 详情</th><th>交易哈希</th></tr></thead>
+                <tbody id="recordsBody">
+                    <tr><td colspan="4" class="empty-state">暂无记录</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 模态框：解锁账户 -->
+    <div class="modal-mask" id="unlockModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span>🔓 解锁账户</span>
+                <span class="modal-close" onclick="closeUnlockModal()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label>账户地址</label>
+                <input id="unlockAddress" class="input" readonly style="background:#f5f7fa;">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input id="unlockPassword" class="input" type="password" placeholder="输入密码">
+            </div>
+            <div class="form-group">
+                <label>解锁持续时间（秒）</label>
+                <input id="unlockDuration" class="input" type="number" value="300">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeUnlockModal()">取消</button>
+                <button class="btn btn-primary" onclick="unlockAccount()">解锁</button>
+            </div>
+            <div id="unlockResult" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ===================== API 基础配置 =====================
+const API_BASE = '';  // 使用相对路径，由后端代理
+
+// ===================== 工具函数 =====================
+function getToken1() {
+    return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+}
+
+
+function getToken() {
+    return '';
+}
+
+
+
+function authHeaders1() {
+    const token = getToken();
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+
+function authHeaders() {
+    return {};
+}
+
+function request1(url, options = {}) {
+    return fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders(),
+            ...(options.headers || {})
+        }
+    }).then(res => {
+        if (!res.ok) {
+            return res.text().then(text => { throw new Error(text || `HTTP ${res.status}`); });
+        }
+        return res.json();
+    });
+}
+
+
+
+function request(url, options = {}) {
+    return fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        }
+    }).then(res => {
+        if (!res.ok) {
+            return res.text().then(text => { throw new Error(text || `HTTP ${res.status}`); });
+        }
+        return res.json();
+    });
+}
+
+
+
+function formatHex(hex) {
+    if (typeof hex === 'string' && hex.startsWith('0x')) return hex;
+    return '0x' + hex;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m] || m);
+}
+
+// ===================== 核心 API 调用 =====================
+
+// 获取链状态
+async function fetchStatus() {
+    try {
+        const data = await request('/api/blockchain/status');
+        return data;
+    } catch (e) {
+        console.error('获取状态失败:', e);
+        return null;
+    }
+}
+
+async function writeEvidence() {
+    const from = document.getElementById('txFrom').value;
+    const text = document.getElementById('writeData').value.trim();
+    if (!from) { alert('请选择发送账户'); return; }
+    if (!text) { alert('请输入存证内容'); return; }
+    
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '写入中...';
+    document.getElementById('writeResult').textContent = '';
+    
+    try {
+        const response = await fetch('/api/blockchain/write', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from, text })
+        });
+        const res = await response.json();
+        if (res.txHash) {
+            document.getElementById('writeResult').innerHTML = `✅ 存证已写入，哈希: <span class="hash-text" onclick="queryTransaction('${res.txHash}')">${res.txHash}</span>`;
+            document.getElementById('writeData').value = '';
+            setTimeout(loadRecords, 2000);
+        } else {
+            document.getElementById('writeResult').innerHTML = '❌ 写入失败: ' + (res.error || '未知错误');
+        }
+    } catch (e) {
+        document.getElementById('writeResult').innerHTML = '❌ 请求失败: ' + e.message;
+    }
+    btn.disabled = false;
+    btn.textContent = '📝 写入存证';
+}
+
+
+// 获取账户列表
+async function fetchAccounts() {
+    try {
+        const data = await request('/api/blockchain/accounts');
+        return data.accounts || [];
+    } catch (e) {
+        console.error('获取账户失败:', e);
+        return [];
+    }
+}
+
+// 解锁账户
+async function unlockAccountApi(address, password, duration = 300) {
+    return request('/api/blockchain/unlock', {
+        method: 'POST',
+        body: JSON.stringify({ address, password, duration })
+    });
+}
+
+// 发送交易
+async function sendTransactionApi(from, to, data) {
+    return request('/api/blockchain/send', {
+        method: 'POST',
+        body: JSON.stringify({ from, to, data })
+    });
+}
+
+// 查询交易
+async function fetchTransaction(hash) {
+    return request(`/api/blockchain/tx/${hash}`);
+}
+
+// 查询余额
+async function fetchBalance(address) {
+    return request(`/api/blockchain/balance/${address}`);
+}
+
+
+
+
+async function startMining() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '启动中...';
+    try {
+        const res = await fetch('/api/blockchain/mine/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({threads: 1})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('✅ 挖矿已启动');
+            updateStatus();
+        } else {
+            alert('❌ 启动失败: ' + (data.error || '未知错误'));
+        }
+    } catch (e) {
+        alert('❌ 请求失败: ' + e.message);
+    }
+    btn.disabled = false;
+    btn.textContent = '▶️ 启动挖矿';
+}
+
+async function stopMining() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '停止中...';
+    try {
+        const res = await fetch('/api/blockchain/mine/stop', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('⏹️ 挖矿已停止');
+            updateStatus();
+        } else {
+            alert('❌ 停止失败: ' + (data.error || '未知错误'));
+        }
+    } catch (e) {
+        alert('❌ 请求失败: ' + e.message);
+    }
+    btn.disabled = false;
+    btn.textContent = '⏹️ 停止挖矿';
+}
+
+
+
+// 获取存证记录
+async function fetchRecords() {
+    return request('/api/blockchain/records');
+}
+
+// ===================== UI 更新函数 =====================
+
+async function updateStatus() {
+    const status = await fetchStatus();
+    if (!status) {
+        document.getElementById('chainStatusBadge').textContent = '❌ 连接失败';
+        document.getElementById('statBlock').textContent = '❌';
+        document.getElementById('statMining').textContent = '未知';
+        return;
+    }
+    document.getElementById('chainStatusBadge').textContent = '✅ 运行中';
+    document.getElementById('statBlock').textContent = status.height || '-';
+    const miningText = status.mining ? '⛏️ 挖矿中' : '⏸️ 已停止';
+    document.getElementById('statMining').textContent = miningText;
+    document.getElementById('statMiningSub').textContent = status.mining ? '正在出块' : '等待启动';
+    document.getElementById('statPeers').textContent = status.peers || '-';
+    // 账户数在 loadAccounts 中更新
+}
+
+async function loadAccounts() {
+    const accounts = await fetchAccounts();
+    const select = document.getElementById('accountSelect');
+    const txFrom = document.getElementById('txFrom');
+    const currentVal = select.value;
+    select.innerHTML = '';
+    txFrom.innerHTML = '';
+    accounts.forEach(addr => {
+        const opt1 = document.createElement('option');
+        opt1.value = addr;
+        opt1.textContent = addr.slice(0,10) + '...' + addr.slice(-6);
+        select.appendChild(opt1);
+        const opt2 = document.createElement('option');
+        opt2.value = addr;
+        opt2.textContent = addr.slice(0,10) + '...' + addr.slice(-6);
+        txFrom.appendChild(opt2);
+    });
+    if (currentVal && accounts.includes(currentVal)) {
+        select.value = currentVal;
+        txFrom.value = currentVal;
+    } else if (accounts.length > 0) {
+        select.value = accounts[0];
+        txFrom.value = accounts[0];
+    }
+    document.getElementById('statAccounts').textContent = accounts.length;
+    document.getElementById('statAccountsSub').textContent = `共 ${accounts.length} 个账户`;
+}
+
+async function loadRecords() {
+    try {
+        const records = await fetchRecords();
+        const tbody = document.getElementById('recordsBody');
+        document.getElementById('recordCount').textContent = records.length;
+        if (!records || records.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无记录</td></tr>';
+            return;
+        }
+        let html = '';
+        records.forEach(r => {
+            const detail = r.detail || '';
+            const type = r.type || '存证记录';
+            const block = r.block || '-';
+            const hash = r.txHash || '-';
+            html += `<tr>
+                <td>${block}</td>
+                <td><span class="status-badge running">${type}</span></td>
+                <td>${escapeHtml(detail)}</td>
+                <td><span class="hash-text" onclick="queryTransaction('${hash}')">${hash.slice(0,12)}...</span></td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    } catch (e) {
+        console.error('加载记录失败:', e);
+        document.getElementById('recordsBody').innerHTML = '<tr><td colspan="4" class="empty-state">加载失败</td></tr>';
+    }
+}
+
+async function refreshAll() {
+    document.getElementById('chainStatusBadge').textContent = '刷新中...';
+    await Promise.all([
+        updateStatus(),
+        loadAccounts(),
+        loadRecords()
+    ]);
+}
+
+// ===================== 交互函数 =====================
+
+function showUnlockModal() {
+    const addr = document.getElementById('accountSelect').value;
+    if (!addr) { alert('请先选择一个账户'); return; }
+    document.getElementById('unlockAddress').value = addr;
+    document.getElementById('unlockPassword').value = '';
+    document.getElementById('unlockDuration').value = 300;
+    document.getElementById('unlockResult').innerHTML = '';
+    document.getElementById('unlockModal').classList.add('active');
+}
+
+function closeUnlockModal() {
+    document.getElementById('unlockModal').classList.remove('active');
+}
+
+async function unlockAccount() {
+    const address = document.getElementById('unlockAddress').value;
+    const password = document.getElementById('unlockPassword').value;
+    const duration = parseInt(document.getElementById('unlockDuration').value) || 300;
+    if (!password) { alert('请输入密码'); return; }
+    const resultEl = document.getElementById('unlockResult');
+    resultEl.textContent = '解锁中...';
+    try {
+        const res = await unlockAccountApi(address, password, duration);
+        if (res.success) {
+            resultEl.innerHTML = '✅ 解锁成功';
+            alert('✅ 账户已解锁');
+            closeUnlockModal();
+        } else {
+            resultEl.innerHTML = '❌ 解锁失败: ' + (res.error || res.message || '未知错误');
+        }
+    } catch (e) {
+        resultEl.innerHTML = '❌ 请求失败: ' + e.message;
+    }
+}
+
+async function sendTransaction() {
+    const from = document.getElementById('txFrom').value;
+    let to = document.getElementById('txTo').value.trim();
+    const data = document.getElementById('txData').value.trim();
+    if (!from) { alert('请选择发送账户'); return; }
+    if (!data) { alert('请输入要上链的数据'); return; }
+    if (!to) to = from; // 默认发给自己
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '发送中...';
+    document.getElementById('txResult').textContent = '';
+    try {
+        const res = await sendTransactionApi(from, to, data);
+        if (res.txHash) {
+            document.getElementById('txResult').innerHTML = `✅ 交易已发送，哈希: <span class="hash-text" onclick="queryTransaction('${res.txHash}')">${res.txHash}</span>`;
+            // 清空输入框
+            document.getElementById('txData').value = '';
+            // 刷新记录（稍后）
+            setTimeout(loadRecords, 2000);
+        } else {
+            document.getElementById('txResult').innerHTML = '❌ 发送失败: ' + (res.error || '未知错误');
+        }
+    } catch (e) {
+        document.getElementById('txResult').innerHTML = '❌ 请求失败: ' + e.message;
+    }
+    btn.disabled = false;
+    btn.textContent = '📨 发送交易';
+}
+
+async function queryTransaction(hash) {
+    if (!hash) {
+        hash = document.getElementById('txHashInput').value.trim();
+    }
+    if (!hash) { alert('请输入交易哈希'); return; }
+    const detailEl = document.getElementById('txDetail');
+    detailEl.style.display = 'block';
+    detailEl.innerHTML = '查询中...';
+    try {
+        const data = await fetchTransaction(hash);
+        if (data.blockNumber) {
+            let html = `<div><strong>区块号：</strong>${data.blockNumber}</div>`;
+            html += `<div><strong>发送方：</strong>${data.from}</div>`;
+            html += `<div><strong>接收方：</strong>${data.to || '(无)'}</div>`;
+            html += `<div><strong>输入数据：</strong><pre>${escapeHtml(data.input || '')}</pre></div>`;
+            detailEl.innerHTML = html;
+        } else {
+            detailEl.innerHTML = '❌ 未找到该交易';
+        }
+    } catch (e) {
+        detailEl.innerHTML = '❌ 查询失败: ' + e.message;
+    }
+}
+
+
+// ===================== 初始化 =====================
+document.addEventListener('DOMContentLoaded', () => {
+    refreshAll();
+    // 定时刷新（30秒）
+    setInterval(() => {
+        const active = document.querySelector('.page-container');
+        if (active) {
+            updateStatus();
+            loadAccounts();
+        }
+    }, 30000);
+});
+
+// 将函数暴露给全局，供 onclick 使用
+window.refreshAll = refreshAll;
+window.loadAccounts = loadAccounts;
+window.loadRecords = loadRecords;
+window.updateStatus = updateStatus;
+window.showUnlockModal = showUnlockModal;
+window.closeUnlockModal = closeUnlockModal;
+window.unlockAccount = unlockAccount;
+window.sendTransaction = sendTransaction;
+window.queryTransaction = queryTransaction;
+window.startMining = startMining;
+window.stopMining = stopMining;
+
+</script>
+</body>
+</html>

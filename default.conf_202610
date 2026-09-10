@@ -1,0 +1,201 @@
+server {
+    client_max_body_size 200M;
+    listen 80;
+    server_name k8s-manager.ecosda.com localhost;
+    root /usr/share/nginx/html;
+    index login.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ===== Flask SSE 实时输出流 =====
+    location /selected-test-output-stream {
+        proxy_pass http://192.168.138.139:5005/selected-test-output-stream;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 600s;
+        chunked_transfer_encoding off;
+    }
+
+    # ===== Flask 其他 API =====
+    location /api/reports/       { proxy_pass http://192.168.138.139:5005/api/reports/; proxy_set_header Host $host; }
+    location /api/reports-list   { proxy_pass http://192.168.138.139:5005/api/reports-list; proxy_set_header Host $host; }
+    location /api/test-tree      { proxy_pass http://192.168.138.139:5005/api/test-tree; proxy_set_header Host $host; }
+    location /api/run-test       { proxy_pass http://192.168.138.139:5005/api/run-test; proxy_set_header Host $host; }
+    location /api/report/        { proxy_pass http://192.168.138.139:5005/api/report/; proxy_set_header Host $host; }
+
+    location /run-selected-test  { proxy_pass http://192.168.138.139:5005/run-selected-test; proxy_set_header Host $host; }
+    location /get-test-output    { proxy_pass http://192.168.138.139:5005/get-test-output; proxy_set_header Host $host; }
+    location /get-report-content { proxy_pass http://192.168.138.139:5005/get-report-content; proxy_set_header Host $host; }
+    location /refresh-reports    { proxy_pass http://192.168.138.139:5005/refresh-reports; proxy_set_header Host $host; }
+    location /delete-report      { proxy_pass http://192.168.138.139:5005/delete-report; proxy_set_header Host $host; }
+
+    # ===== Ceph 文件系统 API（代理到 backend Flask）=====
+    location /api/fs/ {
+        proxy_pass http://backend:5001/api/fs/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 300s;
+        client_max_body_size 1024M;
+    }
+
+    # ===== Ceph API 代理 =====
+    location /api/ceph/ {
+        proxy_pass http://backend:5001/api/ceph/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        client_max_body_size 1024M;
+        proxy_read_timeout 300s;
+    }
+
+    # ===== WebSocket 终端代理 =====
+    location /ws/ {
+        proxy_pass http://backend:8082/ws/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # ===== C++ 后端 API =====
+    location /api/ {
+        proxy_pass http://backend:8580/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # ===== 极狐 GitLab 代理 =====
+    location /gitlab/ {
+        proxy_pass http://192.168.138.146:80/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # 移除阻止 iframe 的响应头
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        
+        # 重定向处理
+        proxy_redirect http://192.168.138.146:80/ /gitlab/;
+        proxy_redirect https://192.168.138.146:443/ /gitlab/;
+        
+        # 增加超时
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+
+    # ===== Grafana 代理 =====
+    location /grafana/ {
+        proxy_pass http://192.168.138.139:30030/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header X-Frame-Options;
+        proxy_redirect http://192.168.138.139:30030/ /grafana/;
+        
+        # WebSocket 支持
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # 增加超时时间
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    # ===== Jenkins 代理 =====
+    location /jenkins/ {
+        proxy_pass http://192.168.138.139:31730/jenkins/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect /jenkins/ /jenkins/;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location /pytestweb/ {
+        proxy_pass http://192.168.138.139:5005/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location /static/ {
+        proxy_pass http://192.168.138.139:5005/static/;
+        proxy_set_header Host $host;
+    }
+
+    location /allure-history/ {
+        proxy_pass http://192.168.138.139:5005/allure-history/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location /run-tests-stream {
+        proxy_pass http://192.168.138.139:5005/run-tests-stream;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 600s;
+    }
+
+    location /test-output-stream {
+        proxy_pass http://192.168.138.139:5005/test-output-stream;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 600s;
+    }
+
+    location /compare {
+        proxy_pass http://192.168.138.139:5005/compare;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location /api/reports/compare {
+        proxy_pass http://192.168.138.139:5005/api/reports/compare;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Ceph Dashboard 代理
+    location /ceph/ {
+        proxy_pass https://192.168.138.139:31201/;
+        proxy_ssl_verify off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        proxy_redirect https://192.168.138.139:31201/ /ceph/;
+        proxy_redirect / /ceph/;
+    }
+
+    # 代理自动化测试 API
+    location /autotest-api/ {
+        proxy_pass http://192.168.64.248:8081/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header X-Frame-Options;
+    }
+}

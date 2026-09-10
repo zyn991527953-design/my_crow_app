@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧑‍💻 开发工作空间管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        .page-header h1 span {
+            font-size: 32px;
+        }
+        .page-header .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #3a7bc8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(74,144,226,0.3);
+        }
+        .btn-outline {
+            background: white;
+            color: #4a4d5e;
+            border: 1px solid #dcdfe6;
+        }
+        .btn-outline:hover {
+            background: #f5f7fa;
+            border-color: #4a90e2;
+            color: #4a90e2;
+        }
+        .btn-danger {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .btn-danger:hover {
+            background: #ffcdd2;
+        }
+        .btn-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .btn-success:hover {
+            background: #c8e6c9;
+        }
+        .btn-auto {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .btn-auto:hover {
+            background: #ffe0b2;
+        }
+        .btn-auto-paused {
+            background: #f5f5f5;
+            color: #333;
+        }
+        .btn-auto-paused:hover {
+            background: #e0e0e0;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 24px;
+            border: 1px solid rgba(0,0,0,0.04);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .stat-card .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+        .stat-card .stat-label {
+            font-size: 14px;
+            color: #8c8f9c;
+            margin-top: 4px;
+        }
+        .stat-card .stat-icon {
+            font-size: 24px;
+            float: right;
+        }
+
+        /* 工作空间列表 */
+        .ws-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 16px;
+        }
+        .ws-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e4e7ed;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: all 0.3s;
+        }
+        .ws-card:hover {
+            box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+            transform: translateY(-2px);
+        }
+        .ws-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .ws-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            word-break: break-all;
+        }
+        .ws-card-title .ws-icon {
+            margin-right: 8px;
+        }
+        .ws-status {
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .ws-status.running { background: #e8f5e9; color: #2e7d32; }
+        .ws-status.pending { background: #fff3e0; color: #e65100; }
+        .ws-status.failed { background: #ffebee; color: #c62828; }
+        .ws-status.terminating { background: #f3e5f5; color: #7b1fa2; }
+        .ws-status.unknown { background: #f5f5f5; color: #999; }
+
+        .ws-card-body {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        .ws-card-body .ws-info {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .ws-card-body .ws-info:last-child {
+            border-bottom: none;
+        }
+        .ws-card-body .ws-info .label { color: #999; }
+        .ws-card-body .ws-info .value { color: #333; font-weight: 500; }
+
+        .ws-card-actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .ws-card-actions .btn-sm {
+            padding: 4px 14px;
+            font-size: 13px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-sm.btn-open {
+            background: #4a90e2;
+            color: white;
+        }
+        .btn-sm.btn-open:hover {
+            background: #3a7bc8;
+        }
+        .btn-sm.btn-delete {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .btn-sm.btn-delete:hover {
+            background: #ffcdd2;
+        }
+        .btn-sm.btn-terminal {
+            background: #f5f5f5;
+            color: #333;
+        }
+        .btn-sm.btn-terminal:hover {
+            background: #e0e0e0;
+        }
+        .btn-sm:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .ws-password-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+            background: #f5f5f5;
+            padding: 4px 10px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state .big-icon {
+            font-size: 64px;
+            display: block;
+            margin-bottom: 16px;
+        }
+        .empty-state h3 {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .empty-state p {
+            font-size: 14px;
+            color: #b0b3c0;
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 520px;
+            max-width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e4e7ed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .modal-close {
+            cursor: pointer;
+            font-size: 24px;
+            color: #909399;
+            background: none;
+            border: none;
+        }
+        .modal-close:hover {
+            color: #f56c6c;
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e4e7ed;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #303133;
+            margin-bottom: 4px;
+        }
+        .form-group label .required {
+            color: #f56c6c;
+            margin-left: 2px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #dcdfe6;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            transition: border-color 0.2s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74,144,226,0.1);
+        }
+        .form-control:disabled {
+            background: #f5f7fa;
+            color: #909399;
+        }
+        .form-hint {
+            font-size: 12px;
+            color: #909399;
+            margin-top: 4px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4a90e2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Toast 消息 */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 10000;
+            animation: slideUp 0.3s ease;
+            max-width: 400px;
+        }
+        .toast.success { background: #2e7d32; }
+        .toast.error { background: #c62828; }
+        .toast.info { background: #4a90e2; }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .toast .toast-close {
+            background: none;
+            border: none;
+            color: white;
+            margin-left: 12px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        @media (max-width: 480px) {
+            .page-header { flex-direction: column; align-items: stretch; }
+            .page-header .actions { flex-wrap: wrap; }
+            .ws-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ====== 页面头部 ====== -->
+    <div class="page-header">
+        <h1><span>🧑‍💻</span> 开发工作空间</h1>
+        <div class="actions">
+            <button class="btn btn-outline" onclick="loadWorkspaces()">🔄 刷新</button>
+            <button class="btn btn-auto" id="autoRefreshBtn" onclick="toggleAutoRefresh()">⏸️ 暂停刷新</button>
+            <button class="btn btn-primary" onclick="openCreateModal()">➕ 创建空间</button>
+        </div>
+    </div>
+
+    <!-- ====== 统计卡片 ====== -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <span class="stat-icon">📊</span>
+            <div class="stat-number" id="totalCount">-</div>
+            <div class="stat-label">总计工作空间</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">✅</span>
+            <div class="stat-number" id="runningCount">-</div>
+            <div class="stat-label">运行中</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">⏳</span>
+            <div class="stat-number" id="pendingCount">-</div>
+            <div class="stat-label">启动中</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">💻</span>
+            <div class="stat-number" id="codeServerCount">-</div>
+            <div class="stat-label">Code-Server</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">📓</span>
+            <div class="stat-number" id="jupyterCount">-</div>
+            <div class="stat-label">JupyterLab</div>
+        </div>
+    </div>
+
+    <!-- ====== 工作空间列表 ====== -->
+    <div id="workspaceList">
+        <div class="empty-state">
+            <span class="big-icon">⏳</span>
+            <h3>加载中...</h3>
+            <p>正在获取工作空间列表</p>
+        </div>
+    </div>
+
+    <!-- ====== 创建空间模态框 ====== -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>➕ 创建开发空间</span>
+                <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>空间名称 <span class="required">*</span></label>
+                    <input type="text" id="wsName" class="form-control" placeholder="例如: zhangyunan-dev">
+                    <div class="form-hint">只能包含小写字母、数字和连字符</div>
+                </div>
+                <div class="form-group">
+                    <label>工作空间类型 <span class="required">*</span></label>
+                    <select id="wsType" class="form-control">
+                        <option value="code-server">💻 Code-Server (VS Code 网页版)</option>
+                        <option value="jupyter">📓 JupyterLab (交互式笔记本)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>CPU 配额</label>
+                    <select id="wsCpu" class="form-control">
+                        <option value="200m">0.2 核 (最低)</option>
+                        <option value="500m">0.5 核</option>
+                        <option value="1000m" selected>1 核 (推荐)</option>
+                        <option value="2000m">2 核</option>
+                        <option value="4000m">4 核</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>内存配额</label>
+                    <select id="wsMemory" class="form-control">
+                        <option value="256Mi">256 MB</option>
+                        <option value="512Mi">512 MB</option>
+                        <option value="1Gi" selected>1 GB (推荐)</option>
+                        <option value="2Gi">2 GB</option>
+                        <option value="4Gi">4 GB</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>存储大小</label>
+                    <select id="wsStorage" class="form-control">
+                        <option value="1Gi">1 GB</option>
+                        <option value="5Gi" selected>5 GB (推荐)</option>
+                        <option value="10Gi">10 GB</option>
+                        <option value="20Gi">20 GB</option>
+                    </select>
+                </div>
+                <!-- ✅ 新增密码字段 -->
+                <div class="form-group">
+                    <label>🔑 登录密码</label>
+                    <input type="text" id="wsPassword" class="form-control" placeholder="留空则使用默认密码: 123456">
+                    <div class="form-hint">用于登录 Code-Server 或 JupyterLab，建议设置 6 位以上</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeCreateModal()">取消</button>
+                <button class="btn btn-primary" id="createBtn" onclick="createWorkspace()">🚀 创建</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 配置
+        // ============================================================
+        const API_BASE = '/api/dev-workspace';
+        const USE_MOCK = false;
+
+        let autoRefreshInterval = null;
+        let autoRefreshEnabled = true;
+
+        // ============================================================
+        // 核心功能
+        // ============================================================
+
+        async function loadWorkspaces() {
+            const container = document.getElementById('workspaceList');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="big-icon">⏳</span>
+                    <h3>加载中...</h3>
+                </div>
+            `;
+
+            try {
+                let pods;
+                if (USE_MOCK) {
+                    pods = getMockData();
+                } else {
+                    const response = await fetch(`${API_BASE}/list`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    pods = data.data || [];
+                }
+                renderWorkspaceList(pods);
+                updateStats(pods);
+            } catch (e) {
+                console.error('加载失败:', e);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <span class="big-icon">⚠️</span>
+                        <h3>加载失败</h3>
+                        <p>${e.message}</p>
+                        <br>
+                        <button class="btn btn-primary" onclick="loadWorkspaces()">🔄 重试</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderWorkspaceList(pods) {
+            const container = document.getElementById('workspaceList');
+
+            if (!pods || pods.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <span class="big-icon">🚀</span>
+                        <h3>暂无工作空间</h3>
+                        <p>点击「创建空间」开始你的开发环境</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="ws-grid">';
+            pods.forEach(pod => {
+                const name = pod.name || 'unknown';
+                const status = pod.status || 'Unknown';
+                const statusClass = status.toLowerCase();
+                const labels = pod.labels || {};
+                const wsType = labels['dev-type'] || 'code-server';
+                const wsUser = labels['dev-user'] || 'unknown';
+                const node = pod.node || '-';
+                const created = pod.created || '';
+
+                const icon = wsType === 'jupyter' ? '📓' : '💻';
+                const typeName = wsType === 'jupyter' ? 'JupyterLab' : 'Code-Server';
+                const isRunning = status === 'Running' || status === 'running';
+
+                // 使用后端返回的 accessUrl
+                const serviceUrl = pod.accessUrl || `http://${window.location.hostname}:${pod.nodePort || 30648}`;
+
+                html += `
+                    <div class="ws-card">
+                        <div class="ws-card-header">
+                            <span class="ws-card-title">
+                                <span class="ws-icon">${icon}</span>
+                                ${name}
+                            </span>
+                            <span class="ws-status ${statusClass}">${status}</span>
+                        </div>
+                        <div class="ws-card-body">
+                            <div class="ws-info"><span class="label">👤 用户</span><span class="value">${wsUser}</span></div>
+                            <div class="ws-info"><span class="label">📦 类型</span><span class="value">${typeName}</span></div>
+                            <div class="ws-info"><span class="label">🖥️ 节点</span><span class="value">${node}</span></div>
+                            <div class="ws-info"><span class="label">📅 创建</span><span class="value">${created ? new Date(created).toLocaleString() : '-'}</span></div>
+                        </div>
+                        <div class="ws-card-actions">
+                            ${isRunning ? `<a href="${serviceUrl}" target="_blank" class="btn-sm btn-open">🔗 打开</a>` : `<span style="color:#999;font-size:12px;">⏳ 等待启动...</span>`}
+                            <button class="btn-sm btn-terminal" onclick="openTerminal('${name}')">🖥️ 终端</button>
+                            <button class="btn-sm btn-delete" onclick="deleteWorkspace('${name}')">🗑️ 删除</button>
+                        </div>
+                        ${isRunning ? `<div class="ws-password-hint">🔑 密码: 创建时设置 (默认: 123456)</div>` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function updateStats(pods) {
+            if (!pods) pods = [];
+            const total = pods.length;
+            const running = pods.filter(p => (p.status || '').toLowerCase() === 'running').length;
+            const pending = pods.filter(p => (p.status || '').toLowerCase() === 'pending').length;
+            const codeServer = pods.filter(p => (p.labels || {})['dev-type'] === 'code-server').length;
+            const jupyter = pods.filter(p => (p.labels || {})['dev-type'] === 'jupyter').length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('runningCount').textContent = running;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('codeServerCount').textContent = codeServer;
+            document.getElementById('jupyterCount').textContent = jupyter;
+        }
+
+        // ============================================================
+        // 创建操作
+        // ============================================================
+
+        function openCreateModal() {
+            document.getElementById('wsName').value = '';
+            document.getElementById('wsType').value = 'code-server';
+            document.getElementById('wsCpu').value = '1000m';
+            document.getElementById('wsMemory').value = '1Gi';
+            document.getElementById('wsStorage').value = '5Gi';
+            document.getElementById('wsPassword').value = '';
+            document.getElementById('createModal').classList.add('active');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('active');
+        }
+
+        async function createWorkspace() {
+            const name = document.getElementById('wsName').value.trim();
+            const type = document.getElementById('wsType').value;
+            const cpu = document.getElementById('wsCpu').value;
+            const memory = document.getElementById('wsMemory').value;
+            const storage = document.getElementById('wsStorage').value;
+            const password = document.getElementById('wsPassword').value.trim() || '123456';
+
+            if (!name) {
+                showToast('请输入空间名称', 'error');
+                return;
+            }
+            if (!/^[a-z0-9-]+$/.test(name)) {
+                showToast('名称只能包含小写字母、数字和连字符', 'error');
+                return;
+            }
+            if (password.length < 4) {
+                showToast('密码长度至少 4 位', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 创建中...';
+
+            try {
+                const payload = {
+                    name: name,
+                    type: type,
+                    cpu: cpu,
+                    memory: memory,
+                    storage: storage,
+                    user: getCurrentUser(),
+                    password: password
+                };
+
+                const response = await fetch(`${API_BASE}/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+                if (result.code === 0) {
+                    showToast('✅ 工作空间创建成功！正在启动...', 'success');
+                } else {
+                    throw new Error(result.message || '创建失败');
+                }
+
+                closeCreateModal();
+                setTimeout(loadWorkspaces, 2000);
+            } catch (e) {
+                showToast('❌ 创建失败: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 创建';
+            }
+        }
+
+        // ============================================================
+        // 删除操作
+        // ============================================================
+
+        async function deleteWorkspace1(name) {
+            if (!confirm(`确定要删除工作空间 "${name}" 吗？\n⚠️ 此操作不可恢复！`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/delete/${name}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+                if (result.code === 0) {
+                    showToast('✅ 删除成功', 'success');
+                } else {
+                    throw new Error(result.message || '删除失败');
+                }
+                loadWorkspaces();
+            } catch (e) {
+                showToast('❌ 删除失败: ' + e.message, 'error');
+            }
+        }
+
+
+async function deleteWorkspacei3(name) {
+    const password = prompt(`🔑 请输入工作空间 "${name}" 的登录密码以确认删除：\n⚠️ 此操作不可恢复！`);
+    
+    if (password === null) return;
+    if (!password.trim()) {
+        showToast('密码不能为空', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/delete/${name}`, {
+            method: 'DELETE',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ password: password.trim() })
+        });
+        const result = await response.json();
+        
+        if (result.code === 0) {
+            showToast('✅ 删除成功', 'success');
+            setTimeout(loadWorkspaces, 1000);
+        } else {
+            showToast('❌ ' + (result.message || '删除失败'), 'error');
+        }
+    } catch (e) {
+        showToast('❌ 删除失败: ' + e.message, 'error');
+    }
+}
+
+
+async function deleteWorkspace(name) {
+    // 弹窗让用户输入密码
+    const password = prompt(`🔑 请输入工作空间 "${name}" 的登录密码以确认删除：\n⚠️ 此操作不可恢复！`);
+    
+    if (password === null) return;
+    if (!password.trim()) {
+        showToast('密码不能为空', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/delete/${name}`, {
+            method: 'DELETE',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ password: password.trim() })  // ✅ 关键：必须包含 body
+        });
+        const result = await response.json();
+        
+        if (result.code === 0) {
+            showToast('✅ 删除成功', 'success');
+            loadWorkspaces();
+        } else {
+            showToast('❌ ' + (result.message || '删除失败'), 'error');
+        }
+    } catch (e) {
+        showToast('❌ 删除失败: ' + e.message, 'error');
+    }
+}
+
+
+
+async function deleteWorkspace2(name) {
+    // 弹窗让用户输入密码
+    const password = prompt(`🔑 请输入工作空间 "${name}" 的登录密码以确认删除：\n⚠️ 此操作不可恢复！`);
+    
+    if (password === null) {
+        return; // 用户取消
+    }
+    
+    if (!password.trim()) {
+        showToast('密码不能为空', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/delete/${name}`, {
+            method: 'DELETE',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Password': password.trim()
+            }
+        });
+        const result = await response.json();
+        
+        if (result.code === 0) {
+            showToast('✅ 工作空间已删除', 'success');
+            loadWorkspaces();
+        } else {
+            showToast('❌ ' + (result.message || '删除失败'), 'error');
+        }
+    } catch (e) {
+        showToast('❌ 删除失败: ' + e.message, 'error');
+    }
+}
+
+
+        // ============================================================
+        // 终端跳转
+        // ============================================================
+
+        function openTerminal1(name) {
+            const url = `/pods_manager.html?pod=${encodeURIComponent(name)}`;
+            window.open(url, '_blank');
+        }
+
+
+
+
+function openTerminal(name) {
+    const namespace = 'default';
+    let container = 'code-server';
+    
+    // 方法：直接从 Pod 的 labels 中获取类型，或者通过 API 获取
+    // 先尝试从已加载的 Pod 数据中查找
+    const podElement = document.querySelector(`.ws-card .ws-card-title`);
+    // 更可靠的方式：通过 API 获取容器列表
+    fetch(`/api/pods/${namespace}/${name}/containers`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.containers && data.containers.length > 0) {
+                if (data.containers.includes('jupyter')) {
+                    container = 'jupyter';
+                } else if (data.containers.includes('code-server')) {
+                    container = 'code-server';
+                } else {
+                    container = data.containers[0];
+                }
+            }
+            const url = `/terminal.html?namespace=${namespace}&pod=${encodeURIComponent(name)}&container=${encodeURIComponent(container)}`;
+            window.open(url, '_blank');
+        })
+        .catch(() => {
+            // 如果 API 调用失败，直接使用默认容器
+            const url = `/terminal.html?namespace=${namespace}&pod=${encodeURIComponent(name)}&container=code-server`;
+            window.open(url, '_blank');
+        });
+}
+
+function openTerminal22(name) {
+    const namespace = 'default';
+    const url = `/terminal.html?namespace=${namespace}&pod=${encodeURIComponent(name)}&container=code-server`;
+    window.open(url, '_blank');
+}
+
+
+        // ============================================================
+        // 工具函数
+        // ============================================================
+
+        function getCurrentUser() {
+            try {
+                const user = localStorage.getItem('user');
+                if (user) {
+                    const parsed = JSON.parse(user);
+                    return parsed.username || parsed.name || 'unknown';
+                }
+            } catch (e) {}
+            return 'unknown';
+        }
+
+        function showToast(message, type = 'info') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                ${message}
+                <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast.parentElement) toast.remove();
+            }, 5000);
+        }
+
+        // ============================================================
+        // 自动刷新
+        // ============================================================
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(function() {
+                if (autoRefreshEnabled) {
+                    console.log('🔄 自动刷新工作空间状态...');
+                    loadWorkspaces();
+                }
+            }, 10000);
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const btn = document.getElementById('autoRefreshBtn');
+            if (autoRefreshEnabled) {
+                btn.textContent = '⏸️ 暂停刷新';
+                btn.className = 'btn btn-auto';
+                startAutoRefresh();
+            } else {
+                btn.textContent = '▶️ 继续刷新';
+                btn.className = 'btn btn-auto-paused';
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+
+        // ============================================================
+        // 模拟数据（仅测试用）
+        // ============================================================
+
+        function getMockData() {
+            const now = new Date();
+            return [
+                {
+                    name: 'zhangyunan-dev',
+                    status: 'Running',
+                    labels: { 'dev-type': 'code-server', 'dev-user': 'zhangyunan' },
+                    ip: '10.244.229.175',
+                    node: 'k8s-workers-7',
+                    created: new Date(now - 3600000 * 24 * 3).toISOString(),
+                    accessUrl: 'http://192.168.138.147:30648'
+                },
+                {
+                    name: 'lisi-jupyter',
+                    status: 'Running',
+                    labels: { 'dev-type': 'jupyter', 'dev-user': 'lisi' },
+                    ip: '10.244.229.133',
+                    node: 'k8s-workers-7',
+                    created: new Date(now - 3600000 * 24 * 1).toISOString(),
+                    accessUrl: 'http://192.168.138.147:30649'
+                }
+            ];
+        }
+
+        // ============================================================
+        // 键盘快捷键
+        // ============================================================
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeCreateModal();
+            }
+            if (e.key === 'Enter' && document.getElementById('createModal').classList.contains('active')) {
+                if (e.target.tagName !== 'BUTTON') {
+                    createWorkspace();
+                }
+            }
+        });
+
+        // ============================================================
+        // 初始化
+        // ============================================================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadWorkspaces();
+            startAutoRefresh();
+        });
+
+        // 页面可见性变化时暂停/恢复刷新
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                autoRefreshEnabled = false;
+            } else {
+                autoRefreshEnabled = true;
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.getElementById('createModal').addEventListener('click', function(e) {
+            if (e.target === this) closeCreateModal();
+        });
+    </script>
+
+</body>
+</html>

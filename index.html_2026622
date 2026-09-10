@@ -1,0 +1,3195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>☸️ K8s 集群运维测试开发平台</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; display: flex; min-height: 100vh; }
+
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, #151516 0%, #1e1f21 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.1);
+            transition: width 0.3s ease;
+            z-index: 100;
+        }
+
+        /* 缩窄模式 */
+        .sidebar.collapsed { width: 60px; }
+
+        /* 缩窄模式下隐藏所有文字（图标保留） */
+        .sidebar.collapsed .sidebar-header h2 span:last-child,
+        .sidebar.collapsed .menu-item span:nth-child(2),
+        .sidebar.collapsed .menu-item .arrow,
+        .sidebar.collapsed .sidebar-toggle span:last-child {
+            display: none !important;
+        }
+
+        /* 缩窄模式下菜单项居中 */
+        .sidebar.collapsed .menu-item {
+            justify-content: center;
+            padding: 12px 0;
+        }
+
+        /* 缩窄模式下隐藏子菜单 */
+        .sidebar.collapsed .submenu {
+            display: none;
+        }
+
+        /* 缩窄模式悬浮弹出菜单 - 带延迟效果 */
+        .sidebar.collapsed .menu-item {
+            position: relative;
+        }
+        .sidebar.collapsed .menu-item .popup-menu {
+            display: block;
+            visibility: hidden;
+            opacity: 0;
+            position: fixed;
+            left: 47px;
+            background: #1a1a2e;
+            min-width: 180px;
+            border-radius: 8px;
+            box-shadow: 2px 2px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            padding: 8px 0;
+            transition: visibility 0s linear 0.3s, opacity 0.2s ease;
+            pointer-events: none;
+        }
+        .sidebar.collapsed .menu-item:hover .popup-menu {
+            visibility: visible;
+            opacity: 1;
+            transition-delay: 0s;
+            pointer-events: auto;
+        }
+        .sidebar.collapsed .menu-item .popup-menu:hover {
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .sidebar.collapsed .menu-item:hover .popup-menu .popup-title {
+            padding: 10px 16px;
+            color: #4a90e2;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+        }
+        .sidebar.collapsed .menu-item:hover .popup-menu .popup-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .sidebar.collapsed .menu-item:hover .popup-menu .popup-item:hover {
+            background: rgba(74,144,226,0.3);
+            color: #fff;
+        }
+
+        /* 正常模式下的子菜单 */
+        .sidebar:not(.collapsed) .submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(0,0,0,0.2);
+            margin: 0 12px;
+            border-radius: 8px;
+        }
+        .sidebar:not(.collapsed) .submenu.active {
+            max-height: 500px;
+        }
+        .sidebar:not(.collapsed) .popup-menu {
+            display: none;
+        }
+
+        /* 侧边栏底部 */
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px 0 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 0;
+            margin: 0 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: rgba(255,255,255,0.7);
+            gap: 12px;
+        }
+        .sidebar-toggle:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .sidebar.collapsed .sidebar-toggle {
+            justify-content: center;
+        }
+
+        .sidebar-header { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header h2 { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .sidebar-menu { flex: 1; padding: 20px 0; }
+        .menu-item {
+            padding: 12px 20px;
+            margin: 4px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255,255,255,0.7);
+        }
+        .menu-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .menu-item.active { background: #4a90e2; color: #fff; }
+        .submenu-item {
+            padding: 10px 20px 10px 52px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.6);
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .submenu-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .submenu-item.active { color: #4a90e2; background: rgba(74,144,226,0.1); }
+        .menu-item .arrow { margin-left: auto; font-size: 12px; transition: transform 0.3s; }
+        .menu-item.expanded .arrow { transform: rotate(90deg); }
+
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 24px 32px;
+            transition: margin-left 0.3s ease;
+        }
+        .sidebar.collapsed ~ .main-content { margin-left: 60px; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-header h1 { color: #1a1a2e; font-size: 28px; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 28px; }
+        .stat-card { background: #ffffff26; padding: 24px 20px; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); transition: all 0.3s; border: 1px solid #eee; }
+        .stat-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-header span { color: #666; font-size: 14px; font-weight: 500; }
+        .stat-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .stat-icon.nodes { background: #e3f2fd; color: #1976d2; }
+        .stat-icon.pods { background: #e8f5e9; color: #388e3c; }
+        .stat-icon.running { background: #fff3e0; color: #f57c00; }
+        .stat-icon.deploy { background: #f3e5f5; color: #7b1fa2; }
+        .stat-number { font-size: 36px; font-weight: 700; color: #1a1a2e; }
+        .content-section { background: #ffffff26; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #eee; }
+        .content-section-1 { background: white; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #eee; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .section-header h2 { color: #1a1a2e; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .badge { background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 14px 12px; background: #f8f9fa; color: #555; font-weight: 600; font-size: 13px; border-bottom: 2px solid #e0e0e0; }
+        td { padding: 14px 12px; border-bottom: 1px solid #eee; color: #333; font-size: 14px; }
+        tr:hover { background: #f8f9fa; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .status-ready, .status-running, .status-active { background: #e8f5e9; color: #2e7d32; }
+        .status-not-ready, .status-pending, .status-terminating { background: #fff3e0; color: #e65100; }
+        .status-failed, .status-warning { background: #ffebee; color: #c62828; }
+        .namespace-tag { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .empty-state { text-align: center; padding: 40px; color: #999; }
+        .page { display: none; } .page.active { display: block; }
+        .footer-note { text-align: center; padding: 20px; color: #999; font-size: 13px; border-top: 1px solid #eee; margin-top: 20px; }
+
+        /* 用户模块样式 */
+        .user-info-btn:hover {
+            background: #e8f4ff;
+            border-color: #1890ff;
+        }
+        .user-dropdown {
+            display: none;
+        }
+        .user-dropdown.show {
+            display: block !important;
+        }
+        .user-dropdown div:hover {
+            background: #f5f7fa;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #303133;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #409eff;
+        }
+        .form-control[readonly], .form-control[disabled] {
+            background-color: #f5f7fa;
+            color: #909399;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-outline {
+            background: white;
+            border: 1px solid #dcdfe6;
+            color: #606266;
+        }
+        .btn-outline:hover {
+            color: #409eff;
+            border-color: #409eff;
+        }
+        .btn-primary {
+            background: #409eff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #66b1ff;
+        }
+        /* 模态框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    width: 1000px;
+    max-width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e4e7ed;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+}
+
+.modal-close {
+    cursor: pointer;
+    font-size: 20px;
+    color: #909399;
+}
+
+.modal-close:hover {
+    color: #f56c6c;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid #e4e7ed;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+
+        /* 版本信息样式 */
+.version-info:hover {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.8) !important;
+}
+
+.version-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.version-item {
+    border-bottom: 1px solid #e4e7ed;
+    padding-bottom: 16px;
+}
+
+.version-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.version-item h3 {
+    color: #1890ff;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.version-item ul {
+    margin-left: 20px;
+    color: #606266;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.version-item li {
+    margin-bottom: 4px;
+}
+
+
+
+
+
+/* 健康检查卡片 */
+.health-check-row {
+    margin-bottom: 20px;
+}
+
+.health-card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px 20px;
+    border: 1px solid #e4e7ed;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.health-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.health-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.health-status.healthy {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.health-status.unhealthy {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.health-status.checking {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.health-detail {
+    font-size: 13px;
+    color: #666;
+    word-break: break-all;
+}
+
+
+/* 确保模态框显示正常 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    width: 500px;
+    max-width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+
+/* 标题特效 */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes glow {
+    0% { text-shadow: 0 0 5px rgba(167, 139, 250, 0.3); }
+    50% { text-shadow: 0 0 15px rgba(167, 139, 250, 0.6); }
+    100% { text-shadow: 0 0 5px rgba(167, 139, 250, 0.3); }
+}
+
+.sidebar-header h2 span:last-child {
+    animation: glow 3s ease-in-out infinite;
+}
+
+
+.logo-text {
+    font-size: 16px !important ;
+    font-weight: 600;
+    background: linear-gradient(135deg, #ebe0e0, #da2d2d) !important ;
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: sweep 2s linear infinite;
+    white-space: nowrap;
+}
+
+@keyframes sweep {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+}
+
+.logo-icon {
+    font-size: 22px;
+    animation: wiggle 2s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(10deg); }
+    75% { transform: rotate(-10deg); }
+}
+
+
+
+
+
+
+
+
+
+@keyframes flash {
+    0%, 98% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.5;
+    }
+}
+
+
+
+
+    </style>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+
+
+
+
+
+
+
+
+<div class="sidebar-header">
+    <h2 style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px; animation: pulse 2s infinite;">☸️</span>
+        <span style="font-size: 16px; font-weight: 500; background: linear-gradient(135deg, #ebe0e0, #da2d2d); background-clip: text; -webkit-background-clip: text; color: transparent; letter-spacing: 1px; animation: flash 10s step-end infinite;">
+            K8s DevOps 集成中台
+        </span>
+    </h2>
+</div>
+
+
+
+
+    <div class="sidebar-menu">
+        <div class="menu-item active" onclick="switchPage('dashboard')">
+            <span>📊</span><span>仪表盘</span>
+            <div class="popup-menu"><div class="popup-title">仪表盘</div></div>
+        </div>
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>📦</span><span>工作负载</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">工作负载</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('pods_manager')">Pod 管理(高级)</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('pods')">Pods</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('deployments')">Deployments</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('services')">Services</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('configmaps')">ConfigMaps</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="switchPage('pods_manager')">Pod 管理(高级)</div>
+            <div class="submenu-item" onclick="switchPage('pods')">Pods</div>
+            <div class="submenu-item" onclick="switchPage('deployments')">Deployments</div>
+            <div class="submenu-item" onclick="switchPage('services')">Services</div>
+            <div class="submenu-item" onclick="switchPage('configmaps')">ConfigMaps</div>
+        </div>
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>📊</span><span>数据集管理</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">数据集管理</div>
+                <div class="popup-item" onclick="event.stopPropagation(); window.open(getConfig('Label Studio'), '_blank')">Label Studio</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="window.open(getConfig('Label Studio'), '_blank')">Label Studio</div>
+        </div>
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>🚀</span><span>集群调度</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">集群调度</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('scheduler')">容器调度（简单）</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('scheduler_advanced')">容器调度（增强版）</div>
+            </div>
+        </div>
+        <div class="submenu">
+                <!-- <div class="submenu-item" onclick="switchPage('scheduler')">容器调度（简单）</div> -->
+            <div class="submenu-item" onclick="switchPage('scheduler_advanced')">容器调度（增强版）</div>
+        </div>
+
+
+
+
+
+        <!-- 模型中心菜单 -->
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>🤖</span><span>模型中心</span><span class="arrow">▶</span>
+            <!-- 下拉菜单内容 (popup-menu) -->
+            <div class="popup-menu">
+                <div class="popup-title">模型中心</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('model_plaza')">🏛️ 模型广场</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('openwebui')">💬 Open WebUI</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('dify')">🤖 Dify AI</div>
+            </div>
+        </div>
+        <!-- 子菜单 (submenu) -->
+        <div class="submenu">
+            <div class="submenu-item" onclick="switchPage('model_plaza')">🏛️ 模型广场</div>
+            <div class="submenu-item" onclick="switchPage('openwebui')">💬 Open WebUI</div>
+            <div class="submenu-item" onclick="switchPage('dify')">🤖 Dify AI</div>
+        </div>
+
+
+
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>🐳</span><span>镜像仓库</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">镜像仓库</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('harborImages')">Harbor 镜像</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('harborProjects')">Harbor 项目</div>
+                <div class="popup-item" onclick="event.stopPropagation(); window.open(getConfig('Harbor'), '_blank')">Harbor 仓库</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="switchPage('harborImages')">Harbor 镜像</div>
+            <div class="submenu-item" onclick="switchPage('harborProjects')">Harbor 项目</div>
+            <div class="submenu-item" onclick="window.open(getConfig('Harbor'), '_blank')">Harbor 仓库</div>
+        </div>
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>📈</span><span>系统监控</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">系统监控</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('grafana')">Grafana</div>
+                <div class="popup-item" onclick="event.stopPropagation(); window.open(getConfig('Prometheus'), '_blank')">Prometheus</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="switchPage('grafana')">Grafana</div>
+            <div class="submenu-item" onclick="window.open(getConfig('Prometheus'), '_blank')">Prometheus</div>
+        </div>
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>⚙️</span><span>集群自动化</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">集群自动化</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('jenkins')">Jenkins CICD</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('pytestweb')">PytestWEB</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('autotest')">自动化测试</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="switchPage('jenkins')">Jenkins CICD</div>
+            <div class="submenu-item" onclick="switchPage('pytestweb')">PytestWEB</div>
+            <div class="submenu-item" onclick="switchPage('autotest')">自动化测试</div>
+        </div>
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>💾</span><span>集群存储</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">集群存储</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('ceph_storage')">Ceph 网盘</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('cephflask')">Ceph 管理</div>
+                <div class="popup-item" onclick="event.stopPropagation(); window.open(getConfig('Ceph Web'), '_blank')">Ceph 网页</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="switchPage('ceph_storage')">Ceph 网盘</div>
+            <!-- <div class="submenu-item" onclick="switchPage('cephflask')">Ceph 管理</div> -->
+            <div class="submenu-item" onclick="window.open(getConfig('Ceph Web'), '_blank')">Ceph 网页</div>
+        </div>
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>🖥️</span><span>集群管理</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">集群管理</div>
+                <div class="popup-item" onclick="event.stopPropagation(); window.open(getConfig('Kuboard'), '_blank')">Kuboard</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('nodes')">节点</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('namespaces')">命名空间</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('events')">事件</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('config')">组件配置</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="window.open(getConfig('Kuboard'), '_blank')">Kuboard</div>
+            <div class="submenu-item" onclick="switchPage('nodes')">节点</div>
+            <div class="submenu-item" onclick="switchPage('namespaces')">命名空间</div>
+            <div class="submenu-item" onclick="switchPage('events')">事件</div>
+            <div class="submenu-item" onclick="switchPage('config')">组件配置</div>
+        </div>
+
+
+
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>🦊</span><span>项目管理</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">项目管理</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('gitlab_manager')">📊 GitLab 管理</div>
+                <div class="popup-item" onclick="event.stopPropagation(); window.open('http://192.168.138.146:80', '_blank')">🔗 打开 GitLab</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('showdoc')">项目文档</div>
+                <div class="popup-item" onclick="event.stopPropagation(); window.open('http://192.168.138.147:8079/', '_blank')">📦 Nexus 仓库</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="switchPage('gitlab_manager')">📊 GitLab 管理</div>
+            <div class="submenu-item" onclick="window.open('http://192.168.138.148:80', '_blank')">🔗 打开 GitLab</div>
+            <div class="submenu-item" onclick="switchPage('showdoc')">📚 ShowDoc 文档</div>
+            <div class="submenu-item" onclick="window.open('http://192.168.138.147:8079/', '_blank')">📦 Nexus 仓库</div>
+        </div>
+
+
+
+
+
+
+
+        <div class="menu-item" onclick="toggleSubmenu(this)">
+            <span>📈</span><span>市场价值</span><span class="arrow">▶</span>
+            <div class="popup-menu">
+                <div class="popup-title">市场价值</div>
+                <div class="popup-item" onclick="event.stopPropagation(); switchPage('money')">大盘星图</div>
+            </div>
+        </div>
+        <div class="submenu">
+            <div class="submenu-item" onclick="switchPage('money')">大盘星图</div>
+        </div>
+    </div>
+
+
+    <!-- 侧边栏底部 -->
+<div class="sidebar-footer">
+    <!-- 版本号区域 -->
+    <div class="version-info" onclick="showVersionModal()" style="padding: 8px 16px; margin-bottom: 8px; cursor: pointer; text-align: center; font-size: 12px; color: rgba(255,255,255,0.5); border-top: 1px solid rgba(255,255,255,0.1);">
+        <span>Ecosda  1.0.8</span>
+    </div>
+    <div class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+        <span>◀</span><span>收起侧边栏</span>
+    </div>
+</div>
+
+
+</div>
+
+<div class="main-content" id="mainContent">
+    <div class="page-header">
+        <h1 id="pageTitle">📊 仪表盘</h1>
+        <div class="user-info-container" style="position: relative;">
+            <div class="user-info-btn" onclick="toggleUserDropdown(event)" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f8f9fa; border: 1px solid #e4e7ed; border-radius: 20px; cursor: pointer;">
+                <span>👤</span>
+                <span id="currentUsername">加载中...</span>
+                <span>▼</span>
+            </div>
+            <div id="userDropdown" class="user-dropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 8px; background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.15); min-width: 200px; z-index: 1000;">
+                <div style="padding: 12px 16px; border-bottom: 1px solid #e4e7ed;">
+                    <div style="font-weight: 600;" id="dropdownUsername">-</div>
+                    <div style="font-size: 12px; color: #909399;" id="dropdownRole">-</div>
+                </div>
+                <div onclick="showUserModal(); toggleUserDropdown(event);" style="padding: 10px 16px; cursor: pointer;">📋 个人信息</div>
+                <div onclick="logout()" style="padding: 10px 16px; cursor: pointer; color: #f56c6c;">🚪 退出登录</div>
+            </div>
+        </div>
+    </div>
+
+
+<!-- 版本信息模态框 -->
+<div id="versionModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 1000px;width: 1200px;">
+        <div class="modal-header">
+            <span>📦 版本更新日志</span>
+            <span class="modal-close" onclick="closeVersionModal()">&times;</span>
+        </div>
+        <div class="modal-body" style="max-height: 600px; overflow-y: auto;">
+            <div class="version-list">
+                <div class="version-item">
+                    <h3>v1.0.8 (2026-06-17)</h3>
+                    <ul>
+                        <li>✨ 新增：模型中心模块（模型广场、Open WebUI、Dify AI）</li>
+                        <li>✨ 新增：Dify AI 对话应用集成（Chatbot 嵌入）</li>
+                        <li>✨ 新增：模型广场页面入口</li>
+			<li>🎨 美化：登录页面升级为 Kuboard v3 风格（左右分栏、光效装饰、响应式适配）</li>
+                        <li>🔧 优化：健康检查接口缓存，减少重复请求</li>
+                        <li>🔧 优化：首屏加载性能，非核心模块延迟加载</li>
+                        <li>🔧 优化：合并多个定时器为单个定时器</li>
+                        <li>🔧 优化：GitLab 管理页面懒加载</li>
+                        <li>🐛 修复：GitLab 管理页面 403 访问权限问题</li>
+                        <li>🐛 修复：GitLab 管理页面容器显示异常</li>
+                        <li>🐛 修复：页面切换时 iframe 加载卡顿</li>
+                    </ul>
+                </div>
+
+
+                <div class="version-item">
+                    <h3>v1.0.7 (2026-06-15)</h3>
+                    <ul>
+                        <li>✨ 新增：Sonatype Nexus 制品仓库集成（支持 Maven 仓库管理）</li>
+                        <li>✨ 新增：ShowDoc 项目文档系统集成</li>
+                        <li>✨ 新增：项目管理菜单新增 Nexus 仓库和 ShowDoc 文档入口</li>
+                        <li>🔧 部署：Nexus 3.69.0 版本部署（端口 8079）</li>
+                        <li>🔧 部署：ShowDoc 文档系统部署（端口 4999）</li>
+                        <li>📝 优化：项目管理下拉菜单功能整合</li>
+                    </ul>
+                </div>
+
+                <div class="version-item">
+                    <h3>v1.0.6 (2026-06-10)</h3>
+                    <ul>
+                        <li>✨ 新增：操作日志记录功能（所有 API 调用记录到数据库）</li>
+                        <li>✨ 新增：日志记录中间件（自动记录操作类型、耗时、IP 等）</li>
+                        <li>✨ 新增：operation_logs 数据库表（记录用户操作历史）</li>
+                        <li>✨ 新增：GitLab 项目管理功能（项目列表、创建、删除）</li>
+                        <li>✨ 新增：GitLab API 代理（支持获取项目、用户信息）</li>
+                        <li>🐛 修复：GitLab 文件浏览路由注册问题（暂时禁用）</li>
+                        <li>📝 优化：日志记录性能（异步写入数据库）</li>
+                    </ul>
+                </div>
+                <div class="version-item">
+                    <h3>v1.0.5 (2026-06-09)</h3>
+                    <ul>
+                        <li>✨ 新增：Harbor 镜像上传后端接口（支持 tar 包上传到 Harbor）</li>
+                        <li>✨ 新增：镜像下载 Tag 选择功能（弹窗选择版本）</li>
+                        <li>✨ 新增：首页健康检查自动刷新（登录即显示）</li>
+                        <li>✨ 新增：Harbor 镜像列表自动加载（无需手动刷新）</li>
+                        <li>🐛 修复：Harbor 镜像下载 404 错误</li>
+                        <li>🐛 修复：上传镜像 413 错误（需配置 nginx）</li>
+                        <li>📝 优化：版本日志弹窗宽度调整</li>
+                    </ul>
+                </div>
+                <div class="version-item">
+                    <h3>v1.0.4 (2026-06-08)</h3>
+                    <ul>
+                        <li>✨ 新增：Harbor 镜像上传功能（支持 tar 包上传）</li>
+                        <li>✨ 新增：Harbor 镜像下载功能（导出 tar 包）</li>
+                        <li>✨ 新增：Harbor 项目创建功能</li>
+                        <li>✨ 新增：Harbor 项目删除功能（有镜像的项目禁止删除）</li>
+                        <li>✨ 新增：API Server 健康检查</li>
+                        <li>✨ 新增：etcd 集群健康检查</li>
+                        <li>✨ 新增：OOM 事件监控</li>
+                        <li>✨ 新增：慢节点检测</li>
+                        <li>✨ 新增：网络异常检查</li>
+                        <li>✨ 新增：侧边栏版本号显示（点击查看更新日志）</li>
+                        <li>✨ 新增：侧边栏标题动态特效（光效闪烁）</li>
+                        <li>🐛 修复：Harbor 项目页面加载失败问题</li>
+                        <li>🐛 修复：镜像列表分页显示问题</li>
+                        <li>📝 优化：用户信息弹窗样式</li>
+                    </ul>
+                </div>
+                <div class="version-item">
+                    <h3>v1.0.3 (2026-06-05)</h3>
+                    <ul>
+                        <li>✨ 新增：镜像打包功能</li>
+                        <li>✨ 新增：用户个人信息管理</li>
+                        <li>🐛 修复：侧边栏缩窄模式显示问题</li>
+                        <li>🐛 修复：表格样式错乱问题</li>
+                        <li>📝 优化：页面加载性能</li>
+                    </ul>
+                </div>
+                <div class="version-item">
+                    <h3>v1.0.2 (2026-05-20)</h3>
+                    <ul>
+                        <li>✨ 新增：集群调度增强版</li>
+                        <li>✨ 新增：Harbor 镜像仓库集成</li>
+                        <li>🐛 修复：Deployment 详情页显示问题</li>
+                    </ul>
+                </div>
+                <div class="version-item">
+                    <h3>v1.0.1 (2026-05-01)</h3>
+                    <ul>
+                        <li>✨ 新增：Ceph 存储管理</li>
+                        <li>✨ 新增：Pod 终端和文件浏览器</li>
+                        <li>📝 优化：侧边栏菜单交互</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 12px 20px; border-top: 1px solid #e4e7ed; display: flex; justify-content: flex-end;">
+            <button class="btn btn-outline" onclick="closeVersionModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 模型广场页面容器 -->
+<div id="model_plaza" class="page">
+    <div class="content-section-1" style="text-align: center; padding: 50px;">
+        <h2>🏛️ 模型广场</h2>
+        <p style="color: #666; margin: 20px 0;">
+            在这里可以浏览和选择各种 AI 模型。你可以访问外部模型广场，或通过下方按钮启动 Open WebUI 来管理本地模型。
+        </p>
+        <!-- 示例：一个通往 Open WebUI 的快速入口 -->
+        <button onclick="switchPage('openwebui')" style="padding: 10px 24px; background: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+            🚀 前往 Open WebUI 管理模型
+        </button>
+        <!-- 可以在这里嵌入一个 iframe 来展示外部的模型广场 -->
+        <!-- <iframe src="https://openwebui.com/models" style="width:100%; height:500px; border:none; margin-top:20px;"></iframe> -->
+    </div>
+</div>
+
+<!-- Open WebUI 页面容器 (通过 iframe 嵌入) -->
+<div id="openwebui" class="page">
+    <iframe
+        src="http://你的OpenWebUI地址:端口"
+        style="width:100%; height:calc(100vh - 120px); border:none;">
+    </iframe>
+</div>
+
+
+
+<div id="dify" class="page">
+    <iframe
+        src="http://192.168.138.146/chatbot/pYJR16gm9HasZNpv"
+        style="width:100%; height:calc(100vh - 120px); border:none;"
+        allow="microphone">
+    </iframe>
+</div>
+
+
+<!-- 新建 Harbor 项目模态框 -->
+<div id="createProjectModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <span>➕ 新建 Harbor 项目</span>
+            <span class="modal-close" onclick="closeCreateProjectModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>项目名称 <span style="color: red;">*</span></label>
+                <input type="text" id="newProjectName" class="form-control" placeholder="例如: myproject">
+                <small style="color:#909399;">只能包含小写字母、数字、下划线、连字符</small>
+            </div>
+            <div class="form-group">
+                <label>访问级别</label>
+                <select id="newProjectPublic" class="form-control">
+                    <option value="false">🔒 私有</option>
+                    <option value="true">🌐 公开</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>存储容量限制 (GB)</label>
+                <input type="number" id="newProjectStorage" class="form-control" placeholder="不限制" value="">
+                <small style="color:#909399;">留空表示不限制</small>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #e4e7ed; display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-outline" onclick="closeCreateProjectModal()">取消</button>
+            <button class="btn btn-primary" onclick="createHarborProject()">创建项目</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- 上传镜像模态框 -->
+<div id="uploadImageModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <span>📤 上传镜像到 Harbor</span>
+            <span class="modal-close" onclick="closeUploadImageModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>选择项目</label>
+                <select id="uploadProject" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label>镜像名称</label>
+                <input type="text" id="uploadImageName" class="form-control" placeholder="例如: myapp">
+                <small style="color:#909399;">只能包含小写字母、数字、下划线、连字符</small>
+            </div>
+            <div class="form-group">
+                <label>镜像标签</label>
+                <input type="text" id="uploadImageTag" class="form-control" placeholder="例如: latest">
+            </div>
+            <div class="form-group">
+                <label>选择镜像文件 (.tar)</label>
+                <input type="file" id="uploadTarFile" accept=".tar" class="form-control">
+                <small style="color:#909399;">支持 docker save 导出的 tar 包</small>
+            </div>
+            <div id="uploadProgress" style="display: none;">
+                <div class="progress-bar"><div class="progress-fill" id="uploadProgressFill" style="width:0%"></div></div>
+                <div id="uploadStatus" style="margin-top: 8px; font-size: 12px; color: #666;"></div>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #e4e7ed; display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-outline" onclick="closeUploadImageModal()">取消</button>
+            <button class="btn btn-primary" onclick="uploadImage()" id="uploadBtn">开始上传</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<!-- 上传镜像模态框 -->
+<div id="uploadImageModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <span>📤 上传镜像到 Harbor</span>
+            <span class="modal-close" onclick="closeUploadImageModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>选择项目</label>
+                <select id="uploadProject" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label>镜像名称</label>
+                <input type="text" id="uploadImageName" class="form-control" placeholder="例如: myapp">
+                <small style="color:#909399;">只能包含小写字母、数字、下划线、连字符</small>
+            </div>
+            <div class="form-group">
+                <label>镜像标签</label>
+                <input type="text" id="uploadImageTag" class="form-control" placeholder="例如: latest" value="latest">
+            </div>
+            <div class="form-group">
+                <label>选择镜像文件 (.tar)</label>
+                <input type="file" id="uploadTarFile" accept=".tar" class="form-control">
+                <small style="color:#909399;">支持 docker save 导出的 tar 包</small>
+            </div>
+            <div id="uploadProgress" style="display: none;">
+                <div class="progress-bar"><div class="progress-fill" id="uploadProgressFill"></div></div>
+                <div id="uploadStatus" style="margin-top: 8px; font-size: 12px; color: #666;"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeUploadImageModal()">取消</button>
+            <button class="btn btn-primary" onclick="uploadImage()" id="uploadBtn">开始上传</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+    <!-- 用户信息模态框 -->
+    <div id="userModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px; background: white; border-radius: 8px;">
+            <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid #e4e7ed; display: flex; justify-content: space-between; align-items: center;">
+                <span>👤 用户信息</span>
+                <span class="modal-close" onclick="closeUserModal()" style="cursor: pointer; font-size: 20px;">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="userUsername" class="form-control" readonly disabled>
+                </div>
+                <div class="form-group">
+                    <label>全名</label>
+                    <input type="text" id="userFullname" class="form-control" placeholder="请输入全名">
+                </div>
+                <div class="form-group">
+                    <label>用户组</label>
+                    <input type="text" id="userGroup" class="form-control" readonly disabled>
+                </div>
+                <div class="form-group">
+                    <label>电子邮件</label>
+                    <input type="email" id="userEmail" class="form-control" placeholder="请输入邮箱">
+                </div>
+                <div class="form-group">
+                    <label>角色</label>
+                    <input type="text" id="userRole" class="form-control" readonly disabled>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #e4e7ed; display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn btn-outline" onclick="closeUserModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveUserInfo()">保存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard" class="page active">
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-header"><span>节点总数</span><div class="stat-icon nodes">🖥️</div></div><div class="stat-number" id="statNodes">-</div></div>
+            <div class="stat-card"><div class="stat-header"><span>Pod 总数</span><div class="stat-icon pods">📦</div></div><div class="stat-number" id="statPods">-</div></div>
+            <div class="stat-card"><div class="stat-header"><span>运行中 Pod</span><div class="stat-icon running">✅</div></div><div class="stat-number" id="statRunning">-</div></div>
+            <div class="stat-card"><div class="stat-header"><span>Deployments</span><div class="stat-icon deploy">🚀</div></div><div class="stat-number" id="statDeploy">-</div></div>
+        </div>
+            <!-- API Server 健康检查卡片 -->
+    <div class="content-section" style="padding: 16px 20px;">
+        <div class="section-header">
+            <h2>🔌 API Server 健康检查</h2>
+            <span class="badge" id="apiServerStatusBadge">检查中...</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div>
+                <span style="font-size: 14px; color: #666;">状态：</span>
+                <strong id="apiServerStatus" style="font-size: 16px;">-</strong>
+            </div>
+            <div>
+                <span style="font-size: 14px; color: #666;">响应时间：</span>
+                <strong id="apiServerLatency">-</strong>
+            </div>
+            <div>
+                <span style="font-size: 14px; color: #666;">最后检查：</span>
+                <strong id="apiServerTime">-</strong>
+            </div>
+            <button onclick="checkAPIServerHealth()" style="padding: 4px 12px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer;">🔄 刷新</button>
+        </div>
+        <div id="apiServerDetail" style="margin-top: 12px; font-size: 12px; color: #999; word-break: break-all;"></div>
+    </div>
+
+<!-- 集群健康检查面板 -->
+<div class="content-section" style="padding: 16px 20px;">
+    <div class="section-header">
+        <h2>🏥 集群健康检查</h2>
+        <button onclick="refreshClusterHealth()" style="padding: 4px 12px; background: #4a90e2; color: white; border: none; border-radius: 4px; cursor: pointer;">🔄 刷新</button>
+    </div>
+
+    <!-- 健康检查网格 -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 12px;">
+
+        <!-- etcd 状态 -->
+        <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="font-size: 18px;">📀</span>
+                <span style="font-weight: 600;">etcd 集群</span>
+                <span id="etcdStatus" class="health-status checking" style="margin-left: auto;">检查中...</span>
+            </div>
+            <div id="etcdDetail" style="font-size: 12px; color: #666;"></div>
+        </div>
+
+        <!-- OOM 事件 -->
+        <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="font-size: 18px;">💥</span>
+                <span style="font-weight: 600;">OOM 事件</span>
+                <span id="oomStatus" class="health-status checking" style="margin-left: auto;">检查中...</span>
+            </div>
+            <div id="oomDetail" style="font-size: 12px; color: #666;"></div>
+        </div>
+
+        <!-- 慢节点 -->
+        <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="font-size: 18px;">🐌</span>
+                <span style="font-weight: 600;">慢节点检测</span>
+                <span id="slowNodeStatus" class="health-status checking" style="margin-left: auto;">检查中...</span>
+            </div>
+            <div id="slowNodeDetail" style="font-size: 12px; color: #666;"></div>
+        </div>
+
+        <!-- 网络异常 -->
+        <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="font-size: 18px;">🌐</span>
+                <span style="font-weight: 600;">网络异常</span>
+                <span id="networkStatus" class="health-status checking" style="margin-left: auto;">检查中...</span>
+            </div>
+            <div id="networkDetail" style="font-size: 12px; color: #666;"></div>
+        </div>
+    </div>
+</div>
+
+
+
+        <div class="content-section"><div class="section-header"><h2>🖥️ 节点状态</h2><span class="badge" id="nodeReadyCount">-</span></div><div class="table-container" id="dashboardNodes"></div></div>
+        <div class="content-section"><div class="section-header"><h2>📦 最近 Pods</h2><span class="badge" id="podTotalCount">-</span></div><div class="table-container" id="dashboardPods"></div></div>
+    </div>
+
+    <div id="pods_manager" class="page"><iframe id="podsManagerFrame" src="/pods_manager.html" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe></div>
+    <div id="pods" class="page"><div class="content-section"><div class="section-header"><h2>📦 所有 Pods</h2><span class="badge" id="podListCount">-</span></div><div class="table-container" id="podsTable"></div></div></div>
+    <div id="nodes" class="page"><div class="content-section"><div class="section-header"><h2>🖥️ 所有节点</h2><span class="badge" id="nodeListCount">-</span></div><div class="table-container" id="nodesTable"></div></div></div>
+    <div id="deployments" class="page"><div class="content-section"><div class="section-header"><h2>🚀 Deployments</h2><span class="badge" id="deployListCount">-</span></div><div class="table-container" id="deploymentsTable"></div></div></div>
+    <div id="services" class="page"><div class="content-section"><div class="section-header"><h2>🔌 Services</h2><span class="badge" id="serviceListCount">-</span></div><div class="table-container" id="servicesTable"></div></div></div>
+    <div id="configmaps" class="page"><div class="content-section"><div class="section-header"><h2>📋 ConfigMaps</h2><span class="badge" id="cmListCount">-</span></div><div class="table-container" id="configmapsTable"></div></div></div>
+    <div id="namespaces" class="page"><div class="content-section"><div class="section-header"><h2>📁 命名空间</h2><span class="badge" id="nsListCount">-</span></div><div class="table-container" id="namespacesTable"></div></div></div>
+    <div id="events" class="page"><div class="content-section"><div class="section-header"><h2>📅 事件</h2><span class="badge" id="eventListCount">-</span></div><div class="table-container" id="eventsTable"></div></div></div>
+    <div id="scheduler" class="page"><div class="content-section"><div class="section-header"><h2>🚀 容器调度</h2></div><div class="scheduler-form"><h3>选择镜像</h3><input type="text" id="imageSearch" placeholder="🔍 搜索镜像..." oninput="filterImages()" onfocus="showImageList()" autocomplete="off" style="width:100%;padding:10px;margin-bottom:5px;border-radius:8px;border:1px solid #ddd;"><div id="imageDropdown" style="max-height:250px;overflow-y:auto;border:1px solid #ddd;border-radius:8px;display:none;background:white;"></div><input type="hidden" id="imageSelect"><h3>资源配置</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;"><div><label>CPU 核心数</label><input type="number" id="cpuCores" value="1" min="0.1" step="0.1" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;"></div><div><label>内存 (MB)</label><input type="number" id="memoryMB" value="512" min="128" step="64" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;"></div></div><h3>选择节点</h3><select id="nodeSelect" style="width:100%;padding:10px;margin-bottom:15px;border-radius:8px;border:1px solid #ddd;"><option value="">-- 自动调度 --</option></select><button onclick="createDeployment()" style="padding:12px 24px;background:#4a90e2;color:white;border:none;border-radius:8px;cursor:pointer;font-size:16px;">🚀 部署容器</button></div></div></div>
+
+
+<div id="harborImages" class="page">
+    <div class="content-section">
+        <div class="section-header">
+            <h2>🐳 Harbor 镜像列表</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="showUploadImageModal()" style="padding: 6px 16px;">📤 上传镜像</button>
+                <span class="badge" id="harborImageCount">-</span>
+            </div>
+        </div>
+        <div style="margin-bottom:15px;">
+            <select id="harborProjectSelect" onchange="loadHarborImages()" style="padding:10px;border-radius:8px;border:1px solid #ddd;"></select>
+            <button onclick="refreshHarborImages()" style="margin-left:10px;padding:10px 20px;background:#4a90e2;color:white;border:none;border-radius:8px;">🔄 刷新</button>
+        </div>
+        <div class="table-container" id="harborImagesTable"></div>
+    </div>
+</div>
+
+
+<div id="harborProjects" class="page">
+    <div class="content-section">
+        <div class="section-header">
+            <h2>📁 Harbor 项目</h2>
+            <button class="btn btn-primary" onclick="showCreateProjectModal()">➕ 新建项目</button>
+        </div>
+        <div class="table-container" id="harborProjectsTable"></div>
+    </div>
+</div>
+
+    <div id="grafana" class="page"></div>
+    <div id="jenkins" class="page"><iframe src="/jenkins/" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe></div>
+    <div id="pytestweb" class="page"><iframe src="/pytestweb/reports" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe></div>
+    <div id="autotest" class="page"><iframe src="about:blank" id="autotestIframe" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe></div>
+    <div id="cephflask" class="page"><iframe id="cephflaskIframe" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe></div>
+    <div id="scheduler_advanced" class="page"><iframe src="/scheduler_advanced.html" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe></div>
+    <div id="ceph_storage" class="page"><iframe src="/ceph_storage.html" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe></div>
+    <div id="config" class="page"><div class="content-section-1"><div class="section-header"><h2>⚙️ 组件配置</h2></div><table id="configTable"><thead><tr><th>组件名称</th><th>地址</th><th>端口</th><th>操作</th></tr></thead><tbody id="configTableBody"></tbody></table><button onclick="addConfigRow()" style="margin-top:15px;padding:10px 20px;background:#4a90e2;color:white;border:none;border-radius:8px;cursor:pointer;">➕ 添加组件</button><button onclick="saveConfig()" style="margin-top:15px;margin-left:10px;padding:10px 20px;background:#67c23a;color:white;border:none;border-radius:8px;cursor:pointer;">💾 保存配置</button></div></div>
+
+
+
+
+
+
+
+
+<div id="gitlab_manager" class="page">
+    <div id="gitlabLoading" style="display:flex;align-items:center;justify-content:center;height:calc(100vh - 120px);color:#999;font-size:16px;">
+        ⏳ 加载 GitLab 管理中...
+    </div>
+    <iframe id="gitlabManagerFrame" src="" style="width:100%; height:calc(100vh - 120px); border:none;display:none;"></iframe>
+</div>
+
+
+
+<div id="showdoc" class="page">
+    <iframe src="http://192.168.138.147:4999/web/#/user/login" style="width:100%; height:calc(100vh - 120px); border:none;" ></iframe>
+</div>
+
+
+    <div id="money" class="page"><div class="content-section" style="padding:0; overflow:hidden;"><iframe src="https://quote.eastmoney.com/stockhotmap" style="width:100%; height:calc(100vh - 120px); border:none;" title="大盘星图"></iframe></div></div>
+    <div class="footer-note">Copyright © 2026 - 2030 东方算芯 ecosda. All Rights Reserved.</div>
+</div>
+
+<script>
+// ========== 用户信息相关 ========== configure
+let currentUser = null;
+
+async function loadCurrentUser() {
+    try {
+        const response = await fetch('/api/auth/me');
+        const data = await response.json();
+        if (data.code === 0 && data.data) {
+            currentUser = data.data;
+            document.getElementById('currentUsername').innerText = currentUser.username || '用户';
+            document.getElementById('dropdownUsername').innerText = currentUser.fullname || currentUser.username || '-';
+            document.getElementById('dropdownRole').innerText = currentUser.role || 'user';
+        } else {
+            currentUser = {
+                username: 'admin',
+                fullname: 'System Administrator',
+                group: 'administrators',
+                email: 'admin@example.com',
+                role: 'admin'
+            };
+            document.getElementById('currentUsername').innerText = 'admin';
+            document.getElementById('dropdownUsername').innerText = 'System Administrator';
+            document.getElementById('dropdownRole').innerText = 'admin';
+        }
+    } catch(e) {
+        console.error('获取用户信息失败:', e);
+        currentUser = {
+            username: 'admin',
+            fullname: 'System Administrator',
+            group: 'administrators',
+            email: 'admin@example.com',
+            role: 'admin'
+        };
+        document.getElementById('currentUsername').innerText = 'admin';
+        document.getElementById('dropdownUsername').innerText = 'System Administrator';
+        document.getElementById('dropdownRole').innerText = 'admin';
+    }
+}
+
+
+window.showUploadImageModal = async function() {
+    console.log('showUploadImageModal called');
+    let modal = document.getElementById('uploadImageModal');
+
+    // 如果模态框不存在，创建它
+    if (!modal) {
+        const modalHtml = `
+            <div id="uploadImageModal" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <span>📤 上传镜像到 Harbor</span>
+                        <span class="modal-close" onclick="closeUploadImageModal()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>选择项目</label>
+                            <select id="uploadProject" class="form-control"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>镜像名称</label>
+                            <input type="text" id="uploadImageName" class="form-control" placeholder="例如: myapp">
+                            <small style="color:#909399;">只能包含小写字母、数字、下划线、连字符</small>
+                        </div>
+                        <div class="form-group">
+                            <label>镜像标签</label>
+                            <input type="text" id="uploadImageTag" class="form-control" placeholder="例如: latest" value="latest">
+                        </div>
+                        <div class="form-group">
+                            <label>选择镜像文件 (.tar)</label>
+                            <input type="file" id="uploadTarFile" accept=".tar" class="form-control">
+                            <small style="color:#909399;">支持 docker save 导出的 tar 包</small>
+                        </div>
+                        <div id="uploadProgress" style="display: none;">
+                            <div class="progress-bar"><div class="progress-fill" id="uploadProgressFill"></div></div>
+                            <div id="uploadStatus" style="margin-top: 8px; font-size: 12px; color: #666;"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="closeUploadImageModal()">取消</button>
+                        <button class="btn btn-primary" onclick="uploadImage()" id="uploadBtn">开始上传</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('uploadImageModal');
+    }
+
+    if (!modal) {
+        alert('上传功能初始化失败');
+        return;
+    }
+
+    // 加载项目列表
+    try {
+        const response = await fetch('/api/harbor/projects');
+        const projects = await response.json();
+        const select = document.getElementById('uploadProject');
+        if (select && projects && projects.length) {
+            select.innerHTML = projects.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+        }
+    } catch(e) {
+        console.error('加载项目失败:', e);
+    }
+
+    // 清空表单
+    const nameInput = document.getElementById('uploadImageName');
+    const tagInput = document.getElementById('uploadImageTag');
+    const fileInput = document.getElementById('uploadTarFile');
+    const progressDiv = document.getElementById('uploadProgress');
+
+    if (nameInput) nameInput.value = '';
+    if (tagInput) tagInput.value = 'latest';
+    if (fileInput) fileInput.value = '';
+    if (progressDiv) progressDiv.style.display = 'none';
+
+    modal.style.display = 'flex';
+};
+
+// 同时确保 closeUploadImageModal 和 uploadImage 函数存在
+window.closeUploadImageModal = function() {
+    const modal = document.getElementById('uploadImageModal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.uploadImage = async function() {
+    const project = document.getElementById('uploadProject')?.value;
+    const imageName = document.getElementById('uploadImageName')?.value.trim();
+    const imageTag = document.getElementById('uploadImageTag')?.value.trim();
+    const fileInput = document.getElementById('uploadTarFile');
+    const file = fileInput?.files[0];
+
+    if (!project) { alert('请选择项目'); return; }
+    if (!imageName) { alert('请输入镜像名称'); return; }
+    if (!imageTag) { alert('请输入镜像标签'); return; }
+    if (!file) { alert('请选择 tar 文件'); return; }
+    if (!/^[a-z0-9_-]+$/.test(imageName)) {
+        alert('镜像名称只能包含小写字母、数字、下划线、连字符');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('project', project);
+    formData.append('image_name', imageName);
+    formData.append('image_tag', imageTag);
+    formData.append('file', file);
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('uploadProgressFill');
+    const statusDiv = document.getElementById('uploadStatus');
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerText = '上传中...';
+    progressDiv.style.display = 'block';
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/harbor/upload-image');
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            progressFill.style.width = percent + '%';
+            statusDiv.innerText = `上传进度: ${percent}%`;
+        }
+    };
+    xhr.onload = () => {
+        uploadBtn.disabled = false;
+        uploadBtn.innerText = '开始上传';
+        if (xhr.status === 200) {
+            try {
+                const result = JSON.parse(xhr.responseText);
+                if (result.success) {
+                    alert('✅ 镜像上传成功！');
+                    closeUploadImageModal();
+                    loadHarborImages();
+                } else {
+                    alert('❌ 上传失败: ' + result.error);
+                }
+            } catch(e) {
+                alert('❌ 上传失败: ' + e.message);
+            }
+        } else {
+            alert('❌ 上传失败: HTTP ' + xhr.status);
+        }
+    };
+    xhr.onerror = () => {
+        uploadBtn.disabled = false;
+        uploadBtn.innerText = '开始上传';
+        alert('❌ 上传失败: 网络错误');
+    };
+    xhr.send(formData);
+};
+
+
+function createUploadModal() {
+    const modalHtml = `
+        <div id="uploadImageModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <span>📤 上传镜像到 Harbor</span>
+                    <span class="modal-close" onclick="closeUploadImageModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>选择项目</label>
+                        <select id="uploadProject" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>镜像名称</label>
+                        <input type="text" id="uploadImageName" class="form-control" placeholder="例如: myapp">
+                        <small style="color:#909399;">只能包含小写字母、数字、下划线、连字符</small>
+                    </div>
+                    <div class="form-group">
+                        <label>镜像标签</label>
+                        <input type="text" id="uploadImageTag" class="form-control" placeholder="例如: latest" value="latest">
+                    </div>
+                    <div class="form-group">
+                        <label>选择镜像文件 (.tar)</label>
+                        <input type="file" id="uploadTarFile" accept=".tar" class="form-control">
+                        <small style="color:#909399;">支持 docker save 导出的 tar 包</small>
+                    </div>
+                    <div id="uploadProgress" style="display: none;">
+                        <div class="progress-bar"><div class="progress-fill" id="uploadProgressFill"></div></div>
+                        <div id="uploadStatus" style="margin-top: 8px; font-size: 12px; color: #666;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeUploadImageModal()">取消</button>
+                    <button class="btn btn-primary" onclick="uploadImage()" id="uploadBtn">开始上传</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+
+
+
+
+
+
+// 显示上传模态框
+async function showUploadImageModal1() {
+    // 加载项目列表
+    const projects = await fetchHarborProjects();
+    const select = document.getElementById('uploadProject');
+    if (projects && projects.length) {
+        select.innerHTML = projects.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+    }
+    document.getElementById('uploadImageName').value = '';
+    document.getElementById('uploadImageTag').value = 'latest';
+    document.getElementById('uploadTarFile').value = '';
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadModal').style.display = 'flex';
+}
+
+function closeUploadImageModal1() {
+    document.getElementById('uploadModal').style.display = 'none';
+}
+
+
+
+function closeUploadImageModal() {
+    const modal = document.getElementById('uploadImageModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+
+// 上传镜像
+async function uploadImage() {
+    const project = document.getElementById('uploadProject').value;
+    const imageName = document.getElementById('uploadImageName').value.trim();
+    const imageTag = document.getElementById('uploadImageTag').value.trim();
+    const fileInput = document.getElementById('uploadTarFile');
+    const file = fileInput.files[0];
+
+    if (!project) {
+        alert('请选择项目');
+        return;
+    }
+    if (!imageName) {
+        alert('请输入镜像名称');
+        return;
+    }
+    if (!imageTag) {
+        alert('请输入镜像标签');
+        return;
+    }
+    if (!file) {
+        alert('请选择 tar 文件');
+        return;
+    }
+
+    // 验证镜像名称格式
+    if (!/^[a-z0-9_-]+$/.test(imageName)) {
+        alert('镜像名称只能包含小写字母、数字、下划线、连字符');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('project', project);
+    formData.append('image_name', imageName);
+    formData.append('image_tag', imageTag);
+    formData.append('file', file);
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('uploadProgressFill');
+    const statusDiv = document.getElementById('uploadStatus');
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerText = '上传中...';
+    progressDiv.style.display = 'block';
+
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/harbor/upload-image');
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressFill.style.width = percent + '%';
+                statusDiv.innerText = `上传进度: ${percent}%`;
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const result = JSON.parse(xhr.responseText);
+                if (result.success) {
+                    alert('✅ 镜像上传成功！');
+                    closeUploadImageModal();
+                    loadHarborImages(); // 刷新列表
+                } else {
+                    alert('❌ 上传失败: ' + result.error);
+                }
+            } else {
+                alert('❌ 上传失败: HTTP ' + xhr.status);
+            }
+            uploadBtn.disabled = false;
+            uploadBtn.innerText = '开始上传';
+        };
+
+        xhr.onerror = () => {
+            alert('❌ 上传失败: 网络错误');
+            uploadBtn.disabled = false;
+            uploadBtn.innerText = '开始上传';
+        };
+
+        xhr.send(formData);
+
+    } catch(e) {
+        alert('❌ 上传失败: ' + e.message);
+        uploadBtn.disabled = false;
+        uploadBtn.innerText = '开始上传';
+    }
+}
+
+// 下载镜像
+async function downloadImage(fullImageName) {
+    if (!confirm(`确定要下载镜像 "${fullImageName}" 吗？`)) return;
+
+    try {
+        const response = await fetch(`/api/harbor/download-image?image=${encodeURIComponent(fullImageName)}`);
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${fullImageName.replace(/\//g, '_')}.tar`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            alert('✅ 镜像下载已开始');
+        } else {
+            const error = await response.json();
+            alert('❌ 下载失败: ' + (error.error || '未知错误'));
+        }
+    } catch(e) {
+        alert('❌ 下载失败: ' + e.message);
+    }
+}
+
+
+
+
+// 显示上传模态框
+async function showUploadImageModal() {
+    // 加载项目列表
+    const projects = await fetchHarborProjects();
+    const select = document.getElementById('uploadProject');
+    if (projects && projects.length) {
+        select.innerHTML = projects.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+    }
+    document.getElementById('uploadImageName').value = '';
+    document.getElementById('uploadImageTag').value = 'latest';
+    document.getElementById('uploadTarFile').value = '';
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadModal').style.display = 'flex';
+}
+
+function closeUploadImageModal() {
+    document.getElementById('uploadModal').style.display = 'none';
+}
+
+// 上传镜像
+async function uploadImage() {
+    const project = document.getElementById('uploadProject').value;
+    const imageName = document.getElementById('uploadImageName').value.trim();
+    const imageTag = document.getElementById('uploadImageTag').value.trim();
+    const fileInput = document.getElementById('uploadTarFile');
+    const file = fileInput.files[0];
+
+    if (!project) {
+        alert('请选择项目');
+        return;
+    }
+    if (!imageName) {
+        alert('请输入镜像名称');
+        return;
+    }
+    if (!imageTag) {
+        alert('请输入镜像标签');
+        return;
+    }
+    if (!file) {
+        alert('请选择 tar 文件');
+        return;
+    }
+
+    // 验证镜像名称格式
+    if (!/^[a-z0-9_-]+$/.test(imageName)) {
+        alert('镜像名称只能包含小写字母、数字、下划线、连字符');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('project', project);
+    formData.append('image_name', imageName);
+    formData.append('image_tag', imageTag);
+    formData.append('file', file);
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('uploadProgressFill');
+    const statusDiv = document.getElementById('uploadStatus');
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerText = '上传中...';
+    progressDiv.style.display = 'block';
+
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/harbor/upload-image');
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressFill.style.width = percent + '%';
+                statusDiv.innerText = `上传进度: ${percent}%`;
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const result = JSON.parse(xhr.responseText);
+                if (result.success) {
+                    alert('✅ 镜像上传成功！');
+                    closeUploadImageModal();
+                    loadHarborImages(); // 刷新列表
+                } else {
+                    alert('❌ 上传失败: ' + result.error);
+                }
+            } else {
+                alert('❌ 上传失败: HTTP ' + xhr.status);
+            }
+            uploadBtn.disabled = false;
+            uploadBtn.innerText = '开始上传';
+        };
+
+        xhr.onerror = () => {
+            alert('❌ 上传失败: 网络错误');
+            uploadBtn.disabled = false;
+            uploadBtn.innerText = '开始上传';
+        };
+
+        xhr.send(formData);
+
+    } catch(e) {
+        alert('❌ 上传失败: ' + e.message);
+        uploadBtn.disabled = false;
+        uploadBtn.innerText = '开始上传';
+    }
+}
+
+// 下载镜像
+async function downloadImage(fullImageName) {
+    if (!confirm(`确定要下载镜像 "${fullImageName}" 吗？`)) return;
+
+    try {
+        const response = await fetch(`/api/harbor/download-image?image=${encodeURIComponent(fullImageName)}`);
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${fullImageName.replace(/\//g, '_')}.tar`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            alert('✅ 镜像下载已开始');
+        } else {
+            const error = await response.json();
+            alert('❌ 下载失败: ' + (error.error || '未知错误'));
+        }
+    } catch(e) {
+        alert('❌ 下载失败: ' + e.message);
+    }
+}
+
+// ========== 健康检查缓存 ==========
+let healthCache = {
+    data: null,
+    timestamp: 0,
+    ttl: 30000 // 30秒内不重复请求
+};
+
+async function getHealthStatus() {
+    const now = Date.now();
+    if (healthCache.data && (now - healthCache.timestamp) < healthCache.ttl) {
+        return healthCache.data;
+    }
+
+    try {
+        const response = await fetch('/api/health');
+        const data = await response.json();
+        healthCache.data = data;
+        healthCache.timestamp = now;
+        return data;
+    } catch(e) {
+        console.error('健康检查失败:', e);
+        return null;
+    }
+}
+
+// 集群健康检查
+async function checkClusterHealth() {
+    try {
+        const response = await fetch('/api/health/check');
+        const data = await response.json();
+
+        // etcd 状态
+        const etcdStatusSpan = document.getElementById('etcdStatus');
+        const etcdDetailSpan = document.getElementById('etcdDetail');
+        if (data.etcd && data.etcd.healthy) {
+            etcdStatusSpan.innerHTML = '✅ 健康';
+            etcdStatusSpan.className = 'health-status healthy';
+            etcdDetailSpan.innerHTML = `etcd 集群运行中: ${data.etcd.running_count} 个实例`;
+        } else {
+            etcdStatusSpan.innerHTML = '❌ 异常';
+            etcdStatusSpan.className = 'health-status unhealthy';
+            etcdDetailSpan.innerHTML = `etcd 集群可能有问题，运行实例: ${data.etcd?.running_count || 0}`;
+        }
+
+        // OOM 事件
+        const oomStatusSpan = document.getElementById('oomStatus');
+        const oomDetailSpan = document.getElementById('oomDetail');
+        if (data.oom && data.oom.has_oom) {
+            oomStatusSpan.innerHTML = '⚠️ 有 OOM';
+            oomStatusSpan.className = 'health-status unhealthy';
+            oomDetailSpan.innerHTML = `检测到 OOM 事件: ${data.oom.details.substring(0, 100)}...`;
+        } else {
+            oomStatusSpan.innerHTML = '✅ 无';
+            oomStatusSpan.className = 'health-status healthy';
+            oomDetailSpan.innerHTML = '最近无 OOM 事件';
+        }
+
+        // 慢节点
+        const slowStatusSpan = document.getElementById('slowNodeStatus');
+        const slowDetailSpan = document.getElementById('slowNodeDetail');
+        if (data.slow_nodes && data.slow_nodes.count > 0) {
+            slowStatusSpan.innerHTML = `⚠️ ${data.slow_nodes.count} 个`;
+            slowStatusSpan.className = 'health-status unhealthy';
+            let details = data.slow_nodes.details.map(n => `${n.name}: ${n.issue}`).join('; ');
+            slowDetailSpan.innerHTML = details;
+        } else {
+            slowStatusSpan.innerHTML = '✅ 正常';
+            slowStatusSpan.className = 'health-status healthy';
+            slowDetailSpan.innerHTML = '所有节点负载正常';
+        }
+
+        // 网络异常
+        const networkStatusSpan = document.getElementById('networkStatus');
+        const networkDetailSpan = document.getElementById('networkDetail');
+        if (data.network && data.network.has_issue) {
+            networkStatusSpan.innerHTML = '⚠️ 异常';
+            networkStatusSpan.className = 'health-status unhealthy';
+            networkDetailSpan.innerHTML = `检测到网络问题: ${data.network.details.substring(0, 100)}...`;
+        } else {
+            networkStatusSpan.innerHTML = '✅ 正常';
+            networkStatusSpan.className = 'health-status healthy';
+            networkDetailSpan.innerHTML = '网络状态正常';
+        }
+
+    } catch(e) {
+        console.error('集群健康检查失败:', e);
+        // 设置默认状态
+        ['etcdStatus', 'oomStatus', 'slowNodeStatus', 'networkStatus'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.innerHTML = '❌ 检查失败';
+                el.className = 'health-status unhealthy';
+            }
+        });
+    }
+}
+
+
+
+
+// 每10秒闪一下（持续时间更长）
+setInterval(() => {
+    const titleSpan = document.querySelector('.sidebar-header h2 span:last-child');
+    if (titleSpan) {
+        titleSpan.style.transition = '0.7s';
+        titleSpan.style.opacity = '0.5';
+        titleSpan.style.filter = 'brightness(1.5)';
+        titleSpan.style.textShadow = '0 0 5px #da2d2d';
+        setTimeout(() => {
+            titleSpan.style.opacity = '1';
+            titleSpan.style.filter = 'brightness(1)';
+            titleSpan.style.textShadow = 'none';
+        }, 300);
+    }
+}, 10000);
+
+
+
+// 显示新建项目模态框
+function showCreateProjectModal() {
+    document.getElementById('newProjectName').value = '';
+    document.getElementById('newProjectPublic').value = 'false';
+    document.getElementById('newProjectStorage').value = '';
+    document.getElementById('createProjectModal').style.display = 'flex';
+}
+
+function closeCreateProjectModal() {
+    document.getElementById('createProjectModal').style.display = 'none';
+}
+
+// 创建 Harbor 项目
+async function createHarborProject() {
+    const projectName = document.getElementById('newProjectName').value.trim();
+    const isPublic = document.getElementById('newProjectPublic').value === 'true';
+    const storageLimit = document.getElementById('newProjectStorage').value;
+
+    if (!projectName) {
+        alert('请输入项目名称');
+        return;
+    }
+
+    // 验证项目名称格式
+    if (!/^[a-z0-9_-]+$/.test(projectName)) {
+        alert('项目名称只能包含小写字母、数字、下划线、连字符');
+        return;
+    }
+
+    const createBtn = event.target;
+    const originalText = createBtn.innerText;
+    createBtn.disabled = true;
+    createBtn.innerText = '创建中...';
+
+    try {
+        const response = await fetch('/api/harbor/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_name: projectName,
+                public: isPublic,
+                storage_limit: storageLimit ? parseInt(storageLimit) : -1
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('✅ 项目创建成功！');
+            closeCreateProjectModal();
+            // 刷新项目列表
+            loadHarborProjectsPage();
+        } else {
+            alert('❌ 创建失败: ' + (result.error || result.message));
+        }
+    } catch(e) {
+        alert('❌ 请求失败: ' + e.message);
+    } finally {
+        createBtn.disabled = false;
+        createBtn.innerText = originalText;
+    }
+}
+
+
+// 刷新所有健康检查
+function refreshClusterHealth() {
+    checkAPIServerHealth();
+    checkClusterHealth();
+}
+
+
+
+
+function toggleUserDropdown(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('userDropdown');
+    if (!dropdown) return;
+    if (dropdown.style.display === 'block') {
+        dropdown.style.display = 'none';
+    } else {
+        dropdown.style.display = 'block';
+    }
+}
+
+function showUserModal1() {
+    const dropdown = document.getElementById('userDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+    document.getElementById('userUsername').value = currentUser?.username || '';
+    document.getElementById('userFullname').value = currentUser?.fullname || '';
+    document.getElementById('userGroup').value = currentUser?.group || 'administrators';
+    document.getElementById('userEmail').value = currentUser?.email || '';
+    document.getElementById('userRole').value = currentUser?.role || '';
+    document.getElementById('userModal').style.display = 'flex';
+}
+
+function showUserModal() {
+    const dropdown = document.getElementById('userDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+
+    document.getElementById('userUsername').value = currentUser?.username || '';
+    document.getElementById('userFullname').value = currentUser?.fullname || '';
+    document.getElementById('userGroup').value = currentUser?.group || 'administrators';
+    document.getElementById('userEmail').value = currentUser?.email || '';
+    document.getElementById('userRole').value = currentUser?.role || '';
+
+    const modal = document.getElementById('userModal');
+    modal.style.display = 'flex';
+}
+
+
+function closeUserModal() {
+    document.getElementById('userModal').style.display = 'none';
+}
+
+function saveUserInfo() {
+    const fullname = document.getElementById('userFullname').value;
+    const email = document.getElementById('userEmail').value;
+    if (currentUser) {
+        currentUser.fullname = fullname;
+        currentUser.email = email;
+    }
+    document.getElementById('dropdownUsername').innerText = fullname || currentUser?.username || '用户';
+    alert('✅ 用户信息已保存');
+    closeUserModal();
+}
+
+
+async function checkAPIServerHealth() {
+    const statusSpan = document.getElementById('apiServerStatus');
+    const badgeSpan = document.getElementById('apiServerStatusBadge');
+    const latencySpan = document.getElementById('apiServerLatency');
+    const timeSpan = document.getElementById('apiServerTime');
+    const detailSpan = document.getElementById('apiServerDetail');
+
+    const startTime = Date.now();
+    try {
+        const response = await fetch('/api/health');
+        const endTime = Date.now();
+        const latency = endTime - startTime;
+        const now = new Date().toLocaleTimeString();
+
+        if (response.ok) {
+            statusSpan.innerHTML = '✅ 正常';
+            statusSpan.style.color = '#2e7d32';
+            badgeSpan.innerHTML = '✅ 正常';
+            badgeSpan.className = 'badge';
+            badgeSpan.style.background = '#e8f5e9';
+            badgeSpan.style.color = '#2e7d32';
+            latencySpan.innerHTML = `${latency}ms`;
+            timeSpan.innerHTML = now;
+            detailSpan.innerHTML = `API Server 响应正常，状态码: ${response.status}`;
+        } else {
+            statusSpan.innerHTML = '❌ 异常';
+            statusSpan.style.color = '#c62828';
+            badgeSpan.innerHTML = '❌ 异常';
+            badgeSpan.className = 'badge';
+            badgeSpan.style.background = '#ffebee';
+            badgeSpan.style.color = '#c62828';
+            latencySpan.innerHTML = `${latency}ms`;
+            timeSpan.innerHTML = now;
+            detailSpan.innerHTML = `API Server 返回异常状态码: ${response.status}`;
+        }
+    } catch(e) {
+        const endTime = Date.now();
+        const latency = endTime - startTime;
+        const now = new Date().toLocaleTimeString();
+
+        statusSpan.innerHTML = '❌ 不可用';
+        statusSpan.style.color = '#c62828';
+        badgeSpan.innerHTML = '❌ 不可用';
+        badgeSpan.className = 'badge';
+        badgeSpan.style.background = '#ffebee';
+        badgeSpan.style.color = '#c62828';
+        latencySpan.innerHTML = `${latency}ms`;
+        timeSpan.innerHTML = now;
+        detailSpan.innerHTML = `连接失败: ${e.message}`;
+    }
+}
+
+
+
+function logout() {
+    if (confirm('确定要退出登录吗？')) {
+        // 清除本地用户信息
+        currentUser = null;
+        // 清除存储的 token（如果有）
+        localStorage.removeItem('token');
+        sessionStorage.clear();
+        // 跳转到登录页（如果没有登录页，跳回首页并刷新）
+        window.location.href = '/';
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const container = document.querySelector('.user-info-container');
+    const dropdown = document.getElementById('userDropdown');
+    if (container && dropdown && !container.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
+
+// ========== 侧边栏缩窄/还原 ==========
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    sidebar.classList.toggle('collapsed');
+    if (sidebar.classList.contains('collapsed')) {
+        toggleBtn.innerHTML = '<span>▶</span><span>展开侧边栏</span>';
+        localStorage.setItem('sidebarCollapsed', 'true');
+    } else {
+        toggleBtn.innerHTML = '<span>◀</span><span>收起侧边栏</span>';
+        localStorage.setItem('sidebarCollapsed', 'false');
+    }
+}
+
+function loadSidebarState() {
+    const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    if (isCollapsed) {
+        sidebar.classList.add('collapsed');
+        toggleBtn.innerHTML = '<span>▶</span><span>展开侧边栏</span>';
+    }
+}
+
+// ========== 菜单交互 ==========
+function toggleSubmenu(el) {
+    if (document.getElementById('sidebar').classList.contains('collapsed')) return;
+    el.classList.toggle('expanded');
+    if (el.nextElementSibling) {
+        el.nextElementSibling.classList.toggle('active');
+    }
+}
+
+
+
+function switchPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) targetPage.classList.add('active');
+
+    const titles = {
+        dashboard:'📊 仪表盘', pods:'📦 Pods', pods_manager:'📦 Pod 管理(高级)', nodes:'🖥️   节点',
+        deployments:'🚀 Deployments', services:'🔌 Services', configmaps:'📋 ConfigMaps',
+        namespaces:'📁 命名空间', events:'📅 事件', scheduler:'🚀 容器调度',
+        harborImages:'🐳 Harbor 镜像', harborProjects:'📁 Harbor 项目', grafana:'📈 Grafana 监控',
+        jenkins:'⚙️ Jenkins CICD', pytestweb:'🧪 PytestWEB', autotest:'🧪 自动化测试',
+        cephflask:'💾 Ceph 管理', dify: '🤖 Dify AI', config:'⚙️ 组件配置', scheduler_advanced:'🚀 容器调度（增强版）',
+        ceph_storage:'💾 Ceph 网盘', model_plaza: '🏛️ 模型广场',openwebui: '💬 Open WebUI',money:'💰 大盘星图', showdoc: '📚 ShowDoc 文档',
+        nexus: '📦 Nexus 仓库',gitlab_manager:'📊 GitLab 管理',gitlab:'🦊 极狐 GitLab'
+    };
+    document.getElementById('pageTitle').innerText = titles[pageId] || pageId;
+
+    // ✅ 只保留必要的加载器，移除 gitlab_manager
+    const loaders = {
+        dashboard: fetchDashboardData,
+        pods: fetchPodsList,
+        nodes: fetchNodesList,
+        deployments: fetchDeploymentsList,
+        services: fetchServicesList,
+        configmaps: fetchConfigMapsList,
+        namespaces: fetchNamespacesList,
+        events: fetchEventsList,
+        scheduler: loadSchedulerPage,
+        harborImages: loadHarborProjectsPage,
+        harborProjects: loadHarborProjectsPage,
+        config: renderConfigTable,
+        autotest: autoLoginAutotest
+    };
+
+    if (loaders[pageId]) {
+        loaders[pageId]();
+    }
+
+    if (pageId === 'grafana') {
+        const c = document.getElementById('grafana');
+        if (!c.querySelector('iframe')) {
+            c.innerHTML = '<iframe src="/grafana/?theme=light" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe>';
+        }
+    }
+    if (pageId === 'cephflask') {
+        document.getElementById('cephflaskIframe').src = getConfig('Ceph Flask');
+    }
+
+if (pageId === 'gitlab_manager') {
+    var frame = document.getElementById('gitlabManagerFrame');
+    var loading = document.getElementById('gitlabLoading');
+    const targetSrc = 'http://192.168.138.139:8081/gitlab_manager.html';
+    
+    if (frame) {
+        // 用自定义属性判断是否已加载，而不是判断src
+        if (!frame.dataset.loaded) {
+            // 显示加载提示
+            if (loading) loading.style.display = 'flex';
+            frame.style.display = 'none';
+            
+            setTimeout(function() {
+                frame.src = targetSrc;
+            }, 300);
+            
+            frame.onload = function() {
+                if (loading) loading.style.display = 'none';
+                frame.style.display = 'block';
+                frame.dataset.loaded = 'true';
+                frame.onload = null;
+            };
+            
+            // 8秒超时兜底
+            setTimeout(function() {
+                if (loading && loading.style.display !== 'none') {
+                    loading.style.display = 'none';
+                    frame.style.display = 'block';
+                }
+            }, 8000);
+        } else {
+            // 已经加载过，直接显示
+            if (loading) loading.style.display = 'none';
+            frame.style.display = 'block';
+        }
+    }
+}
+    if (pageId === 'gitlab') {
+        const c = document.getElementById('gitlab');
+        if (c && !c.querySelector('iframe')) {
+            c.innerHTML = '<iframe src="/gitlab/" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe>';
+        }
+    }
+
+
+}
+
+
+function switchPage_bak(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) targetPage.classList.add('active');
+
+    const titles = {
+        dashboard:'📊 仪表盘', pods:'📦 Pods', pods_manager:'📦 Pod 管理(高级)', nodes:'🖥️  节点',
+        deployments:'🚀 Deployments', services:'🔌 Services', configmaps:'📋 ConfigMaps',
+        namespaces:'📁 命名空间', events:'📅 事件', scheduler:'🚀 容器调度',
+        harborImages:'🐳 Harbor 镜像', harborProjects:'📁 Harbor 项目', grafana:'📈 Grafana 监控',
+        jenkins:'⚙️ Jenkins CICD', pytestweb:'🧪 PytestWEB', autotest:'🧪 自动化测试',
+        cephflask:'💾 Ceph 管理', dify: '🤖 Dify AI', config:'⚙️ 组件配置', scheduler_advanced:'🚀 容器调度（增强版）',
+        ceph_storage:'💾 Ceph 网盘', model_plaza: '🏛️ 模型广场',openwebui: '💬 Open WebUI',money:'💰 大盘星图', showdoc: '📚 ShowDoc 文档 账号showdoc 密码123456',
+        nexus: '📦 Nexus 仓库',gitlab_manager:'📊 GitLab 管理',gitlab:'🦊 极狐 GitLab'
+    };
+    document.getElementById('pageTitle').innerText = titles[pageId] || pageId;
+
+    const loaders = {
+        dashboard: fetchDashboardData, pods: fetchPodsList, nodes: fetchNodesList,
+        deployments: fetchDeploymentsList, services: fetchServicesList, configmaps: fetchConfigMapsList,
+        namespaces: fetchNamespacesList, events: fetchEventsList, scheduler: loadSchedulerPage,
+        harborImages: () => {
+            loadHarborProjectsPage();
+        },
+        harborProjects: loadHarborProjectsPage,
+        config: renderConfigTable,
+        autotest: autoLoginAutotest
+    };
+
+    if (loaders[pageId]) {
+        loaders[pageId]();
+    }
+
+    if (pageId === 'grafana') {
+        const c = document.getElementById('grafana');
+        if (!c.querySelector('iframe')) {
+            c.innerHTML = '<iframe src="/grafana/?theme=light" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe>';
+        }
+    }
+    if (pageId === 'cephflask') {
+        document.getElementById('cephflaskIframe').src = getConfig('Ceph Flask');
+    }
+    // 添加 GitLab 处理
+    if (pageId === 'gitlab') {
+        const c = document.getElementById('gitlab');
+        if (c && !c.querySelector('iframe')) {
+            c.innerHTML = '<iframe src="/gitlab/" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe>';
+        }
+    }
+}
+
+
+
+
+
+function switchPage3(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) targetPage.classList.add('active');
+
+    const titles = {
+        dashboard:'📊 仪表盘', pods:'📦 Pods', pods_manager:'📦 Pod 管理(高级)', nodes:'🖥️ 节点',
+        deployments:'🚀 Deployments', services:'🔌 Services', configmaps:'📋 ConfigMaps',
+        namespaces:'📁 命名空间', events:'📅 事件', scheduler:'🚀 容器调度',
+        harborImages:'🐳 Harbor 镜像', harborProjects:'📁 Harbor 项目', grafana:'📈 Grafana 监控',
+        jenkins:'⚙️ Jenkins CICD', pytestweb:'🧪 PytestWEB', autotest:'🧪 自动化测试',
+        cephflask:'💾 Ceph 管理', config:'⚙️ 组件配置', scheduler_advanced:'🚀 容器调度（增强版）',
+        ceph_storage:'💾 Ceph 网盘', money:'💰 大盘星图'
+    };
+    document.getElementById('pageTitle').innerText = titles[pageId] || pageId;
+
+    const loaders = {
+        dashboard: fetchDashboardData, pods: fetchPodsList, nodes: fetchNodesList,
+        deployments: fetchDeploymentsList, services: fetchServicesList, configmaps: fetchConfigMapsList,
+        namespaces: fetchNamespacesList, events: fetchEventsList, scheduler: loadSchedulerPage,
+        harborImages: () => {
+            // 确保先加载项目列表，再加载镜像
+            loadHarborProjectsPage();
+        },
+        harborProjects: loadHarborProjectsPage,
+        config: renderConfigTable,
+        autotest: autoLoginAutotest
+    };
+
+    if (loaders[pageId]) {
+        loaders[pageId]();
+    }
+
+    if (pageId === 'grafana') {
+        const c = document.getElementById('grafana');
+        if (!c.querySelector('iframe')) {
+            c.innerHTML = '<iframe src="/grafana/?theme=light" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe>';
+        }
+    }
+    if (pageId === 'cephflask') {
+        document.getElementById('cephflaskIframe').src = getConfig('Ceph Flask');
+    }
+}
+
+
+
+
+
+function switchPage2(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) targetPage.classList.add('active');
+    const titles = {
+        dashboard:'📊 仪表盘', pods:'📦 Pods', pods_manager:'📦 Pod 管理(高级)', nodes:'🖥️ 节点',
+        deployments:'🚀 Deployments', services:'🔌 Services', configmaps:'📋 ConfigMaps',
+        namespaces:'📁 命名空间', events:'📅 事件', scheduler:'🚀 容器调度',
+        harborImages:'🐳 Harbor 镜像', harborProjects:'📁 Harbor 项目', grafana:'📈 Grafana 监控',
+        jenkins:'⚙️ Jenkins CICD', pytestweb:'🧪 PytestWEB', autotest:'🧪 自动化测试',
+        cephflask:'💾 Ceph 管理', config:'⚙️ 组件配置', scheduler_advanced:'🚀 容器调度（增强版）',
+        ceph_storage:'💾 Ceph 网盘', money:'💰 大盘星图'
+    };
+    document.getElementById('pageTitle').innerText = titles[pageId] || pageId;
+    const loaders = {
+        dashboard: fetchDashboardData, pods: fetchPodsList, nodes: fetchNodesList,
+        deployments: fetchDeploymentsList, services: fetchServicesList, configmaps: fetchConfigMapsList,
+        namespaces: fetchNamespacesList, events: fetchEventsList, scheduler: loadSchedulerPage,
+        harborImages: loadHarborImages, config: renderConfigTable,
+        autotest: autoLoginAutotest
+    };
+
+    // 特殊处理 harborProjects，需要延迟加载确保 DOM 渲染
+    if (pageId === 'harborProjects') {
+        setTimeout(() => {
+            loadHarborProjectsPage();
+        }, 100);
+    } else if (loaders[pageId]) {
+        loaders[pageId]();
+    }
+
+    if (pageId === 'grafana') {
+        const c = document.getElementById('grafana');
+        if (!c.querySelector('iframe')) {
+            c.innerHTML = '<iframe src="/grafana/?theme=light" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe>';
+        }
+    }
+    if (pageId === 'cephflask') {
+        document.getElementById('cephflaskIframe').src = getConfig('Ceph Flask');
+    }
+}
+
+
+
+function switchPage1(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) targetPage.classList.add('active');
+    const titles = {
+        dashboard:'📊 仪表盘', pods:'📦 Pods', pods_manager:'📦 Pod 管理(高级)', nodes:'🖥️ 节点',
+        deployments:'🚀 Deployments', services:'🔌 Services', configmaps:'📋 ConfigMaps',
+        namespaces:'📁 命名空间', events:'📅 事件', scheduler:'🚀 容器调度',
+        harborImages:'🐳 Harbor 镜像', harborProjects:'📁 Harbor 项目', grafana:'📈 Grafana 监控',
+        jenkins:'⚙️ Jenkins CICD', pytestweb:'🧪 PytestWEB', autotest:'🧪 自动化测试',
+        cephflask:'💾 Ceph 管理', config:'⚙️ 组件配置', scheduler_advanced:'🚀 容器调度（增强版）',
+        ceph_storage:'💾 Ceph 网盘', money:'💰 大盘星图'
+    };
+    document.getElementById('pageTitle').innerText = titles[pageId] || pageId;
+    const loaders = {
+        dashboard: fetchDashboardData, pods: fetchPodsList, nodes: fetchNodesList,
+        deployments: fetchDeploymentsList, services: fetchServicesList, configmaps: fetchConfigMapsList,
+        namespaces: fetchNamespacesList, events: fetchEventsList, scheduler: loadSchedulerPage,
+        harborImages: loadHarborImages, harborProjects: loadHarborProjectsPage, config: renderConfigTable,
+        autotest: autoLoginAutotest
+    };
+    if (loaders[pageId]) loaders[pageId]();
+    if (pageId === 'grafana') {
+        const c = document.getElementById('grafana');
+        if (!c.querySelector('iframe')) {
+            c.innerHTML = '<iframe src="/grafana/?theme=light" style="width:100%; height:calc(100vh - 120px); border:none;"></iframe>';
+        }
+    }
+    if (pageId === 'cephflask') {
+        document.getElementById('cephflaskIframe').src = getConfig('Ceph Flask');
+    }
+}
+
+function refreshCurrentPage() {
+    const activePage = document.querySelector('.page.active')?.id;
+    if (activePage) switchPage(activePage);
+}
+
+
+
+// 版本信息相关
+function showVersionModal() {
+    document.getElementById('versionModal').style.display = 'flex';
+}
+
+function closeVersionModal() {
+    document.getElementById('versionModal').style.display = 'none';
+}
+
+
+// ========== 配置管理 ==========
+const API_BASE = '/api';
+let componentConfig = [];
+
+async function loadConfig() {
+    try {
+        const res = await fetch('/api/component-config');
+        componentConfig = await res.json();
+    } catch(e) { console.error('加载配置失败', e); }
+}
+
+function getConfig(name) {
+    const c = componentConfig.find(i => i.name === name);
+    if (!c) return '#';
+    const host = c.host.replace(/^https?:\/\//, '');
+    const protocol = c.host.startsWith('https') ? 'https' : 'http';
+    return `${protocol}://${host}:${c.port}${c.path || '/'}`;
+}
+
+async function saveConfig() {
+    try {
+        await fetch('/api/component-config', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(componentConfig) });
+        alert('✅ 配置已保存');
+    } catch(e) { alert('❌ 保存失败'); }
+}
+
+function renderConfigTable() {
+    const tbody = document.getElementById('configTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = componentConfig.map((c, i) => `
+        <tr>
+            <td><input value="${c.name||''}" onchange="componentConfig[${i}].name=this.value" style="width:120px;padding:6px;border:1px solid #ddd;border-radius:4px;"></td>
+            <td><input value="${c.host||''}" onchange="componentConfig[${i}].host=this.value" style="width:140px;padding:6px;border:1px solid #ddd;border-radius:4px;"></td>
+            <td><input value="${c.port||''}" onchange="componentConfig[${i}].port=this.value" style="width:80px;padding:6px;border:1px solid #ddd;border-radius:4px;"></td>
+            <td><button onclick="componentConfig.splice(${i},1);renderConfigTable()" style="padding:4px 10px;background:#f56c6c;color:white;border:none;border-radius:4px;cursor:pointer;">删除</button></td>
+        </tr>
+    `).join('');
+}
+
+function addConfigRow() { componentConfig.push({name:'New',host:'192.168.138.139',port:'80',path:'/'}); renderConfigTable(); }
+
+// ========== Dashboard 数据 ==========
+async function fetchDashboardData() {
+    try {
+        const [summary, nodes, pods] = await Promise.all([
+            fetch(`${API_BASE}/summary`).then(r=>r.json()),
+            fetch(`${API_BASE}/nodes`).then(r=>r.json()),
+            fetch(`${API_BASE}/pods`).then(r=>r.json())
+        ]);
+        document.getElementById('statNodes').innerText = summary.nodeCount||0;
+        document.getElementById('statPods').innerText = summary.podCount||0;
+        document.getElementById('statRunning').innerText = summary.runningPods||0;
+        document.getElementById('statDeploy').innerText = summary.deployCount||0;
+        renderNodeTable('dashboardNodes', nodes);
+        document.getElementById('nodeReadyCount').innerText = `${nodes.filter(n=>n.status==='Ready').length}/${nodes.length} Ready`;
+        renderPodTable('dashboardPods', pods.slice(0,10));
+        document.getElementById('podTotalCount').innerText = `共 ${pods.length} 个 Pods`;
+    } catch(e) { console.error(e); }
+}
+
+
+
+
+async function fetchPodsList() { const d=await fetch(`${API_BASE}/pods`).then(r=>r.json()); renderPodTable('podsTable',d); document.getElementById('podListCount').innerText=`共 ${d.length} 个 Pods`; }
+async function fetchNodesList() { const d=await fetch(`${API_BASE}/nodes`).then(r=>r.json()); renderNodeTable('nodesTable',d); document.getElementById('nodeListCount').innerText=`共 ${d.length} 个节点`; }
+async function fetchNamespacesList() { const d=await fetch(`${API_BASE}/namespaces`).then(r=>r.json()); renderNamespacesTable(d); document.getElementById('nsListCount').innerText=`共 ${d.length} 个命名空间`; }
+async function fetchDeploymentsList() { const d=await fetch(`${API_BASE}/deployments`).then(r=>r.json()); renderDeploymentsTable(d); document.getElementById('deployListCount').innerText=`共 ${d.length} 个 Deployments`; }
+async function fetchServicesList() { const d=await fetch(`${API_BASE}/services1`).then(r=>r.json()); renderServicesTable(d); document.getElementById('serviceListCount').innerText=`共 ${d.length} 个 Services`; }
+async function fetchConfigMapsList() { const d=await fetch(`${API_BASE}/configmaps`).then(r=>r.json()); renderConfigMapsTable(d); document.getElementById('cmListCount').innerText=`共 ${d.length} 个 ConfigMaps`; }
+async function fetchEventsList() { const d=await fetch(`${API_BASE}/events1`).then(r=>r.json()); renderEventsTable(d); document.getElementById('eventListCount').innerText=`最近 ${d.length} 条事件`; }
+
+// ========== 渲染函数 ==========
+function renderNodeTable(id, nodes) {
+    if(!nodes.length){ document.getElementById(id).innerHTML='<div class="empty-state">暂无节点</div>'; return; }
+    let h='<table><thead><tr><th>名称</th><th>状态</th><th>版本</th><th>系统</th><th>CPU</th></tr></thead><tbody>';
+    nodes.forEach(n=>{
+        let statusClass = n.status==='Ready' ? 'status-ready' : 'status-not-ready';
+        h+=`<tr><td><strong>${n.name}</strong></td><td><span class="status-badge ${statusClass}">${n.status}</span></td><td>${n.kubelet||'-'}</td><td>${n.os||'-'}</td><td>${n.cpu||'-'}</td></tr>`;
+    });
+    document.getElementById(id).innerHTML=h+'</tbody></table>';
+}
+
+function renderPodTable(id, pods) {
+    if(!pods.length){ document.getElementById(id).innerHTML='<div class="empty-state">暂无 Pod</div>'; return; }
+    let h='<table class="pod-table"><thead><tr><th>名称</th><th>命名空间</th><th>状态</th><th>IP</th><th>节点</th><th>重启</th><th>操作</th></tr></thead><tbody>';
+    pods.forEach(p => {
+        let cls = p.status==='Running' ? 'status-running' : (p.status==='Pending' ? 'status-pending' : 'status-failed');
+        let deploymentName = p.name;
+        const lastDash = deploymentName.lastIndexOf('-');
+        const secondLastDash = deploymentName.lastIndexOf('-', lastDash - 1);
+        if (secondLastDash !== -1) deploymentName = deploymentName.substring(0, secondLastDash);
+        h+=`<tr>
+            <td><strong style="cursor:pointer;color:#1890ff;" onclick="viewDeploymentFromPod('${p.namespace}', '${deploymentName}')">${p.name}</strong></td>
+            <td><span class="namespace-tag">${p.namespace}</span></td>
+            <td><span class="status-badge ${cls}">${p.status}</span></td>
+            <td>${p.ip||'-'}</td>
+            <td>${p.node||'-'}</td>
+            <td>${p.restarts||0}</td>
+            <td><button onclick="viewDeploymentFromPod('${p.namespace}', '${deploymentName}')" style="padding:4px 12px;background:#1890ff;color:white;border:none;border-radius:4px;cursor:pointer;">查看 Deployment</button></td>
+        </tr>`;
+    });
+    document.getElementById(id).innerHTML=h+'</tbody></table>';
+}
+
+
+
+
+
+function viewDeploymentFromPod(namespace, deploymentName) {
+    const frame = document.getElementById('podsManagerFrame');
+    if (frame) frame.src = `/pods_manager.html?namespace=${namespace}&deployment=${deploymentName}`;
+    switchPage('pods_manager');
+}
+
+function renderNamespacesTable(data) {
+    if(!data.length){ document.getElementById('namespacesTable').innerHTML='<div class="empty-state">暂无命名空间</div>'; return; }
+    let h='<table><thead><tr><th>名称</th><th>状态</th></tr></thead><tbody>';
+    data.forEach(n=>{ h+=`<tr><td><strong>${n.name}</strong></td><td><span class="status-badge ${n.status==='Active'?'status-active':''}">${n.status}</span></td></tr>`; });
+    document.getElementById('namespacesTable').innerHTML=h+'</tbody></tr>';
+}
+
+function renderDeploymentsTable(data) {
+    if(!data.length){ document.getElementById('deploymentsTable').innerHTML='<div class="empty-state">暂无 Deployment</div>'; return; }
+    let h='<table><thead><tr><th>名称</th><th>命名空间</th><th>副本</th><th>可用</th><th>就绪</th></tr></thead><tbody>';
+    data.forEach(d=>{ h+=`<tr><td><strong>${d.name}</strong></td><td><span class="namespace-tag">${d.namespace}</span></td><td>${d.replicas||0}</td><td>${d.availableReplicas||0}</td><td>${d.readyReplicas||0}</td></tr>`; });
+    document.getElementById('deploymentsTable').innerHTML=h+'</tbody></tr>';
+}
+
+
+function renderServicesTable(data) {
+    if(!data.length){ document.getElementById('servicesTable').innerHTML='<div class="empty-state">暂无 Service</div>'; return; }
+    let h='<table class="services-table"><thead><tr><th>名称</th><th>命名空间</th><th>类型</th><th>Cluster IP</th><th>端口</th></tr></thead><tbody>';
+    data.forEach(s=>{
+        h+=`<tr>
+            <td><strong>${s.name||'-'}</strong></td>
+            <td><span class="namespace-tag">${s.namespace||'-'}</span></td>
+            <td>${s.type||'-'}</td>
+            <td>${s.clusterIP||'-'}</td>
+            <td>${s.port||'-'}</td>
+        </tr>`;
+    });
+    document.getElementById('servicesTable').innerHTML=h+'</tbody></table>';
+}
+function renderConfigMapsTable(data) {
+    if(!data.length){ document.getElementById('configmapsTable').innerHTML='<div class="empty-state">暂无 ConfigMap</div>'; return; }
+    let h='<table><thead><tr><th>名称</th><th>命名空间</th><th>数据条目</th></tr></thead><tbody>';
+    data.forEach(c=>{ h+=`<tr><td><strong>${c.name||'-'}</strong></td><td><span class="namespace-tag">${c.namespace||'-'}</span></td><td>${c.dataCount||0}</td></tr>`; });
+    document.getElementById('configmapsTable').innerHTML=h+'</tbody><tr>';
+}
+
+function renderEventsTable(data) {
+    if(!data.length){ document.getElementById('eventsTable').innerHTML='<div class="empty-state">暂无事件</div>'; return; }
+    let h='<table><thead><tr><th>类型</th><th>原因</th><th>命名空间</th><th>消息</th><th>时间</th></tr></thead><tbody>';
+    data.forEach(e=>{ let cls=e.type==='Warning'?'status-warning':'status-ready'; h+=`<tr><td><span class="status-badge ${cls}">${e.type||'-'}</span></td><td>${e.reason||'-'}</td><td>${e.namespace||'-'}</td><td>${e.message||'-'}</td><td>${e.timestamp||'-'}</td></tr>`; });
+    document.getElementById('eventsTable').innerHTML=h+'</tbody></table>';
+}
+
+// ========== 调度页面 ==========
+async function loadSchedulerPage() { setTimeout(async()=>{await loadImageSelect();await loadNodeSelect();},200); }
+
+window.allImages = [];
+window.selectedImage = '';
+
+async function loadImageSelect() {
+    const H = "192.168.138.139:30002";
+    const input = document.getElementById("imageSearch");
+    if (!input) return;
+    input.value = "⏳ 加载镜像...";
+    input.disabled = true;
+    try {
+        const r = await fetch("/api/harbor/cached-images");
+        const d = await r.json();
+        window.allImages = d.map(img => ({ name: img.name, tag: img.tag, full: `${H}/${img.name}:${img.tag}` }));
+        input.value = "";
+        input.placeholder = `🔍 共 ${window.allImages.length} 个镜像，输入关键字搜索...`;
+    } catch(e) { input.placeholder = "加载失败"; }
+    finally { input.disabled = false; }
+}
+
+function filterImages() {
+    const keyword = document.getElementById('imageSearch').value.toLowerCase();
+    const dropdown = document.getElementById('imageDropdown');
+    const filtered = window.allImages.filter(img => img.name.toLowerCase().includes(keyword) || img.tag.toLowerCase().includes(keyword));
+    dropdown.innerHTML = filtered.slice(0, 50).map(img => `<div onclick="selectImage('${img.full}', '${img.name}:${img.tag}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #eee;">${img.name}:${img.tag}</div>`).join('') || '<div style="padding:10px;color:#999;">无匹配镜像</div>';
+    dropdown.style.display = 'block';
+}
+
+function selectImage(full, label) {
+    document.getElementById('imageSearch').value = label;
+    document.getElementById('imageSelect').value = full;
+    document.getElementById('imageDropdown').style.display = 'none';
+    window.selectedImage = full;
+}
+
+function showImageList() {
+    if (window.allImages.length > 0 && !document.getElementById('imageSearch').value) {
+        const dropdown = document.getElementById('imageDropdown');
+        dropdown.innerHTML = window.allImages.slice(0, 50).map(img => `<div onclick="selectImage('${img.full}', '${img.name}:${img.tag}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #eee;">${img.name}:${img.tag}</div>`).join('');
+        dropdown.style.display = 'block';
+    }
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#imageSearch') && !e.target.closest('#imageDropdown')) {
+        document.getElementById('imageDropdown').style.display = 'none';
+    }
+});
+
+async function loadNodeSelect() {
+    const s=document.getElementById('nodeSelect');
+    if(!s)return;
+    try{
+        const nodes=await fetch('/api/nodes').then(r=>r.json());
+        s.innerHTML='<option value="">-- 自动调度 --</option>';
+        nodes.forEach(n=>{if(n.status==='Ready')s.innerHTML+=`<option value="${n.name}">${n.name}</option>`;});
+    }catch(e){}
+}
+
+async function createDeployment() {
+    const image=document.getElementById('imageSelect').value || window.selectedImage;
+    const cpu=document.getElementById('cpuCores').value;
+    const memory=document.getElementById('memoryMB').value;
+    const node=document.getElementById('nodeSelect').value;
+    if(!image){alert('请选择镜像');return;}
+    const deployName='scheduled-'+Date.now();
+    const deployment={metadata:{name:deployName},spec:{replicas:1,selector:{matchLabels:{app:deployName}},template:{metadata:{labels:{app:deployName}},spec:{containers:[{name:'app',image:image,imagePullPolicy:'IfNotPresent',resources:{requests:{cpu:cpu,memory:memory+'Mi'},limits:{cpu:cpu,memory:(parseInt(memory)*2)+'Mi'}}}]}}}};
+    if(node) deployment.spec.template.spec.nodeName=node;
+    try{
+        const res=await fetch(`/api/namespaces/default/deployments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(deployment)});
+        if(res.ok){alert('✅ 部署成功！\n名称: '+deployName);switchPage('deployments');}
+        else{const err=await res.text();alert('❌ 部署失败: '+err);}
+    }catch(e){alert('❌ 部署失败: '+e.message);}
+}
+
+// ========== Harbor ==========
+window.harborPage = 1; window.harborPageSize = 10; window.harborAllImages = [];
+
+async function loadHarborImages1() {
+    const p = document.getElementById('harborProjectSelect').value;
+    window.harborAllImages = await fetchHarborImages(p);
+    window.harborPage = 1;
+    renderHarborImagesPage();
+    document.getElementById('harborImageCount').innerText = `共 ${window.harborAllImages.length} 个镜像`;
+}
+
+
+async function loadHarborImages() {
+    const project = document.getElementById('harborProjectSelect').value;
+    if (!project) return;
+
+    window.harborAllImages = await fetchHarborImages(project);
+    window.harborPage = 1;
+    renderHarborImagesPage();
+    document.getElementById('harborImageCount').innerText = `共 ${window.harborAllImages.length} 个镜像`;
+}
+
+
+function renderHarborImagesPage() {
+    const start = (window.harborPage - 1) * window.harborPageSize;
+    const pageImages = window.harborAllImages.slice(start, start + window.harborPageSize);
+    renderHarborImagesTable(pageImages);
+    renderHarborPagination();
+}
+
+function renderHarborImagesTable1(images) {
+    const c = document.getElementById('harborImagesTable');
+    if (!images || !images.length) { c.innerHTML = '<div class="empty-state">暂无镜像</div>'; return; }
+    let h = '<tr><thead><tr><th>镜像名称</th><th>项目</th><th>拉取次数</th><th>操作</th></tr></thead><tbody>';
+    images.forEach(img => {
+        h += `<tr><td><strong>${img.name.split('/').pop()}</strong></td><td>${img.project_id}</td><td>${img.pull_count || 0}</td><td><button onclick="deployImageFromHarbor('${img.name}')" style="padding:4px 12px;background:#4a90e2;color:white;border:none;border-radius:4px;">部署</button></td></tr>`;
+    });
+    c.innerHTML = h + '</tbody></tr>';
+}
+
+
+function renderHarborImagesTable(images) {
+    const c = document.getElementById('harborImagesTable');
+    if (!c) return;
+    if (!images || images.length === 0) {
+        c.innerHTML = '<div class="empty-state">暂无镜像</div>';
+        return;
+    }
+    let h = '<table class="harbor-table"><thead><tr><th>镜像名称</th><th>项目</th><th>拉取次数</th><th>操作</th></tr></thead><tbody>';
+    images.forEach(img => {
+        let imageShortName = img.name.split('/').pop();
+        let fullImageName = img.name;
+        h += `<tr>
+            <td><strong>${escapeHtml(imageShortName)}</strong></td>
+            <td>${img.project_id || 'library'}</td>
+            <td>${img.pull_count || 0}</td>
+            <td>
+                <button onclick="deployImageFromHarbor('${escapeHtml(fullImageName)}')" style="padding:4px 12px;background:#4a90e2;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:5px;">🚀 部署</button>
+                <button onclick="showTagList('${escapeHtml(fullImageName)}')" style="padding:4px 12px;background:#67c23a;color:white;border:none;border-radius:4px;cursor:pointer;">📥 下载</button>
+            </td>
+        </tr>`;
+    });
+    c.innerHTML = h + '</tbody><tr>';
+}
+
+// 显示 tag 列表选择框
+async function showTagList(imageName) {
+    console.log('showTagList called with:', imageName);
+
+    let project = "library";
+    let repo = imageName;
+    let slashPos = imageName.indexOf('/');
+    if (slashPos !== -1) {
+        project = imageName.substring(0, slashPos);
+        repo = imageName.substring(slashPos + 1);
+    }
+
+    try {
+        const response = await fetch(`/api/harbor/repositories/${project}/${repo}/tags`);
+        const tags = await response.json();
+
+        console.log('获取到的 tags:', tags);
+
+        if (!tags || tags.length === 0) {
+            alert('该镜像没有可用的 tag');
+            return;
+        }
+
+        // 创建弹窗
+        const modalDiv = document.createElement('div');
+        modalDiv.id = 'tagSelectModal';
+        modalDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; justify-content: center; align-items: center;';
+
+        modalDiv.innerHTML = `
+            <div style="background: white; border-radius: 8px; width: 400px; max-width: 90%;">
+                <div style="padding: 16px 20px; border-bottom: 1px solid #e4e7ed; display: flex; justify-content: space-between;">
+                    <span>📦 选择镜像 Tag - ${repo}</span>
+                    <span onclick="document.getElementById('tagSelectModal')?.remove()" style="cursor: pointer; font-size: 20px;">&times;</span>
+                </div>
+                <div style="padding: 20px;">
+                    <label>请选择要下载的 Tag</label>
+                    <select id="tagSelect" style="width: 100%; padding: 8px; margin-top: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        ${tags.map(t => `<option value="${t}">${t}</option>`).join('')}
+                    </select>
+                </div>
+                <div style="padding: 16px 20px; border-top: 1px solid #e4e7ed; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button onclick="document.getElementById('tagSelectModal')?.remove()" style="padding: 8px 16px; background: #909399; color: white; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+                    <button onclick="downloadWithTag('${imageName}')" style="padding: 8px 16px; background: #409eff; color: white; border: none; border-radius: 4px; cursor: pointer;">下载</button>
+                </div>
+            </div>
+        `;
+
+        // 移除已存在的弹窗
+        const existing = document.getElementById('tagSelectModal');
+        if (existing) existing.remove();
+
+        document.body.appendChild(modalDiv);
+
+    } catch(e) {
+        console.error('获取 tag 失败:', e);
+        alert('获取 tag 列表失败: ' + e.message);
+    }
+}
+
+
+
+
+function closeTagModal() {
+    const modal = document.getElementById('tagSelectModal');
+    if (modal) modal.remove();
+}
+
+function downloadWithTag(imageName) {
+    const tagSelect = document.getElementById('tagSelect');
+    if (!tagSelect) {
+        alert('未找到 tag 选择器');
+        return;
+    }
+    const tag = tagSelect.value;
+    if (!tag) {
+        alert('请选择 tag');
+        return;
+    }
+    // 关闭弹窗
+    const modal = document.getElementById('tagSelectModal');
+    if (modal) modal.remove();
+
+    const fullImageWithTag = `${imageName}:${tag}`;
+
+    if (!confirm(`确定要下载镜像 "${fullImageWithTag}" 吗？`)) return;
+
+    fetch(`/api/harbor/download-image?image=${encodeURIComponent(fullImageWithTag)}`)
+        .then(async response => {
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${imageName.replace(/\//g, '_')}_${tag}.tar`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                alert('✅ 镜像下载已开始');
+            } else {
+                const error = await response.json();
+                alert('❌ 下载失败: ' + (error.error || '未知错误'));
+            }
+        })
+        .catch(e => alert('❌ 下载失败: ' + e.message));
+}
+
+
+function renderHarborImagesTable2(images) {
+    const c = document.getElementById('harborImagesTable');
+    if (!images || !images.length) {
+        c.innerHTML = '<div class="empty-state">暂无镜像</div>';
+        return;
+    }
+    let h = '<table class="harbor-table"><thead><tr><th>镜像名称</th><th>项目</th><th>拉取次数</th><th>操作</th></tr></thead><tbody>';
+    images.forEach(img => {
+        let imageShortName = img.name.split('/').pop();
+        h += `<tr>
+            <td><strong>${imageShortName}</strong></td>
+            <td>${img.project_id || 'library'}</td>
+            <td>${img.pull_count || 0}</td>
+            <td><button onclick="deployImageFromHarbor('${img.name}')" style="padding:4px 12px;background:#4a90e2;color:white;border:none;border-radius:4px;cursor:pointer;">部署</button></td>
+        </tr>`;
+    });
+    c.innerHTML = h + '</tbody></table>';
+}
+
+
+function renderHarborPagination() {
+    const total = Math.ceil(window.harborAllImages.length / window.harborPageSize);
+    const c = document.getElementById('harborImagesTable');
+    const old = document.getElementById('harborPagination');
+    if (old) old.remove();
+    const div = document.createElement('div');
+    div.id = 'harborPagination';
+    div.style.cssText = 'display:flex;justify-content:center;gap:8px;margin-top:15px;';
+    div.innerHTML = `
+        <button onclick="window.harborPage=1;renderHarborImagesPage()" ${window.harborPage===1 ? 'disabled' : ''}>首页</button>
+        <button onclick="if(window.harborPage>1){window.harborPage--;renderHarborImagesPage()}" ${window.harborPage===1 ? 'disabled' : ''}>上一页</button>
+        <span>第 ${window.harborPage}/${total} 页</span>
+        <button onclick="if(window.harborPage<${total}){window.harborPage++;renderHarborImagesPage()}" ${window.harborPage===total ? 'disabled' : ''}>下一页</button>
+        <button onclick="window.harborPage=${total};renderHarborImagesPage()" ${window.harborPage===total ? 'disabled' : ''}>末页</button>`;
+    c.parentNode.insertBefore(div, c.nextSibling);
+}
+
+function deployImageFromHarbor(imageName) {
+    const cleanImageName = imageName.replace("library/", "");
+    sessionStorage.setItem('pendingImage', cleanImageName);
+    switchPage('scheduler_advanced');
+    setTimeout(() => {
+        const iframe = document.querySelector('#scheduler_advanced iframe');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'selectImage', imageName: cleanImageName }, '*');
+        }
+    }, 500);
+}
+
+async function loadHarborProjectsPage1() { try { const p = await fetchHarborProjects(); renderHarborProjectsTable(p); } catch(e) {} }
+
+
+
+
+async function loadHarborProjectsPage() {
+    // 等待元素出现
+    let retries = 0;
+    let tableContainer = document.getElementById('harborProjectsTable');
+    while (!tableContainer && retries < 20) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        tableContainer = document.getElementById('harborProjectsTable');
+        retries++;
+    }
+
+    if (!tableContainer) {
+        console.error('harborProjectsTable 元素不存在');
+        return;
+    }
+
+    try {
+        const projects = await fetchHarborProjects();
+        renderHarborProjectsTable(projects);
+
+        // 同时更新镜像页面的下拉框
+        const projectSelect = document.getElementById('harborProjectSelect');
+        if (projectSelect && projects && projects.length > 0) {
+            const currentValue = projectSelect.value;
+            projectSelect.innerHTML = projects.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+            if (projects.some(p => p.name === currentValue)) {
+                projectSelect.value = currentValue;
+            } else if (projects.some(p => p.name === 'library')) {
+                projectSelect.value = 'library';
+            } else if (projects.length > 0) {
+                projectSelect.value = projects[0].name;
+            }
+        }
+    } catch(e) {
+        console.error('加载项目失败:', e);
+        if (tableContainer) {
+            tableContainer.innerHTML = '<div class="empty-state">加载失败</div>';
+        }
+    }
+}
+
+
+
+
+async function loadHarborProjectsPage33() {
+    try {
+        const projects = await fetchHarborProjects();
+        renderHarborProjectsTable(projects);
+
+        // 更新镜像选择下拉框
+        const projectSelect = document.getElementById('harborProjectSelect');
+        if (projectSelect && projects && projects.length > 0) {
+            // 生成所有项目选项
+            projectSelect.innerHTML = projects.map(p =>
+                `<option value="${p.name}">${p.name}</option>`
+            ).join('');
+
+            // 默认选中 library（如果存在）
+            if (projects.some(p => p.name === 'library')) {
+                projectSelect.value = 'library';
+            } else if (projects.length > 0) {
+                projectSelect.value = projects[0].name;
+            }
+
+            // 加载默认项目的镜像
+            loadHarborImages();
+        }
+    } catch(e) {
+        console.error('加载项目失败:', e);
+    }
+}
+
+
+
+
+
+
+async function loadHarborProjectsPage2() {
+    try {
+        const projects = await fetchHarborProjects();
+        renderHarborProjectsTable(projects);
+
+        // 更新镜像选择下拉框
+        const projectSelect = document.getElementById('harborProjectSelect');
+        if (projectSelect && projects && projects.length > 0) {
+            projectSelect.innerHTML = projects.map(p =>
+                `<option value="${p.name}">${p.name}</option>`
+            ).join('');
+
+            // 默认选中第一个项目
+            if (projects.length > 0) {
+                projectSelect.value = projects[0].name;
+                loadHarborImages();  // 加载第一个项目的镜像
+            }
+        }
+    } catch(e) {
+        console.error('加载项目失败:', e);
+    }
+}
+
+
+
+async function fetchHarborImages(project = 'library') { try { return await (await fetch(`/api/harbor/projects/${project}/repositories`)).json(); } catch(e) { return []; } }
+async function fetchHarborProjects() { try { return await (await fetch('/api/harbor/projects')).json(); } catch(e) { return []; } }
+function renderHarborProjectsTable(projects) {
+    const c = document.getElementById('harborProjectsTable');
+    if (!projects || !projects.length) { c.innerHTML = '<div class="empty-state">暂无项目</div>'; return; }
+    let h = '<table><thead><tr><th>项目名称</th><th>访问级别</th><th>镜像数量</th></tr></thead><tbody>';
+    projects.forEach(p => { h += `<tr><td><strong>${p.name}</strong></td><td>${p.metadata?.public === 'true' ? '公开' : '私有'}</td><td>${p.repo_count || 0}</td></tr>`; });
+    c.innerHTML = h + '</tbody></table>';
+}
+
+
+
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+
+
+function renderHarborImagesTableold(images) {
+    const c = document.getElementById('harborImagesTable');
+    if (!images || !images.length) {
+        c.innerHTML = '<div class="empty-state">暂无镜像</div>';
+        return;
+    }
+    let h = '<table class="harbor-table"><thead><tr><th>镜像名称</th><th>项目</th><th>拉取次数</th><th>操作</th></tr></thead><tbody>';
+    images.forEach(img => {
+        let imageShortName = img.name.split('/').pop();
+        let fullImageName = img.name;
+        h += `<tr>
+            <td><strong>${imageShortName}</strong></td>
+            <td>${img.project_id || 'library'}</td>
+            <td>${img.pull_count || 0}</td>
+            <td>
+                <button onclick="deployImageFromHarbor('${fullImageName}')" style="padding:4px 12px;background:#4a90e2;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:5px;">🚀 部署</button>
+                <button onclick="downloadImage('${fullImageName}')" style="padding:4px 12px;background:#67c23a;color:white;border:none;border-radius:4px;cursor:pointer;">📥 下载</button>
+            </td>
+        </tr>`;
+    });
+    c.innerHTML = h + '</tbody></table>';
+}
+
+
+
+function renderHarborImagesTable(images) {
+    const c = document.getElementById('harborImagesTable');
+    if (!images || !images.length) {
+        c.innerHTML = '<div class="empty-state">暂无镜像</div>';
+        return;
+    }
+    let h = '<table class="harbor-table"><thead><tr><th>镜像名称</th><th>项目</th><th>拉取次数</th><th>操作</th></tr></thead><tbody>';
+    images.forEach(img => {
+        let imageShortName = img.name.split('/').pop();
+        let fullImageName = img.name;
+        h += `<tr>
+            <td><strong>${escapeHtml(imageShortName)}</strong></td>
+            <td>${img.project_id || 'library'}</td>
+            <td>${img.pull_count || 0}</td>
+            <td>
+                <button onclick="deployImageFromHarbor('${escapeHtml(fullImageName)}')" style="padding:4px 12px;background:#4a90e2;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:5px;">🚀 部署</button>
+                <button onclick="showTagList('${escapeHtml(fullImageName)}')" style="padding:4px 12px;background:#67c23a;color:white;border:none;border-radius:4px;cursor:pointer;">📥 下载</button>
+            </td>
+        </tr>`;
+    });
+    c.innerHTML = h + '</tbody></table>';
+}
+
+
+
+function renderHarborProjectsTable2(projects) {
+    const c = document.getElementById('harborProjectsTable');
+    if (!projects || !projects.length) {
+        c.innerHTML = '<div class="empty-state">暂无项目</div>';
+        return;
+    }
+    let h = '<table class="harbor-table"><thead><tr><th>项目名称</th><th>访问级别</th><th>镜像数量</th><th>操作</th></tr></thead><tbody>';
+    projects.forEach(p => {
+        const repoCount = p.repo_count || 0;
+        const isPublic = p.metadata?.public === 'true' ? '公开' : '私有';
+        // 如果有镜像，禁用删除按钮
+        const deleteDisabled = repoCount > 0;
+        const deleteTitle = deleteDisabled ? `包含 ${repoCount} 个镜像，无法删除` : '删除项目';
+        const deleteButton = deleteDisabled
+            ? `<button style="padding:4px 12px;background:#c0c4cc;color:white;border:none;border-radius:4px;cursor:not-allowed;" disabled title="${deleteTitle}">🗑️ 删除</button>`
+            : `<button onclick="deleteHarborProject('${p.name}')" style="padding:4px 12px;background:#f56c6c;color:white;border:none;border-radius:4px;cursor:pointer;" title="${deleteTitle}">🗑️ 删除</button>`;
+
+        h += `<tr>
+            <td><strong>${p.name}</strong></td>
+            <td>${isPublic}</td>
+            <td>${repoCount}</td>
+            <td>${deleteButton}</td>
+        </tr>`;
+    });
+    c.innerHTML = h + '</tbody></table>';
+}
+
+// 删除 Harbor 项目
+async function deleteHarborProject(projectName) {
+    // 二次确认
+    const confirmMsg = `⚠️ 确定要删除项目 "${projectName}" 吗？\n\n此操作不可撤销！`;
+    if (!confirm(confirmMsg)) return;
+
+    // 输入确认
+    const inputConfirm = prompt(`请输入 "${projectName}" 以确认删除：`);
+    if (inputConfirm !== projectName) {
+        alert('删除已取消，名称不匹配');
+        return;
+    }
+
+    const deleteBtn = event.target;
+    const originalText = deleteBtn.innerText;
+    deleteBtn.disabled = true;
+    deleteBtn.innerText = '删除中...';
+
+    try {
+        const response = await fetch(`/api/harbor/projects/${encodeURIComponent(projectName)}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('✅ 项目删除成功！');
+            // 刷新项目列表
+            loadHarborProjectsPage();
+            // 同时刷新镜像下拉框
+            const projects = await fetchHarborProjects();
+            const projectSelect = document.getElementById('harborProjectSelect');
+            if (projectSelect && projects && projects.length > 0) {
+                projectSelect.innerHTML = projects.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+                if (projects.some(p => p.name === 'library')) {
+                    projectSelect.value = 'library';
+                    loadHarborImages();
+                }
+            }
+        } else {
+            alert('❌ 删除失败: ' + (result.error || result.message));
+        }
+    } catch(e) {
+        alert('❌ 请求失败: ' + e.message);
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.innerText = originalText;
+    }
+}
+
+function refreshHarborImages() { loadHarborImages(); }
+
+
+
+// 专门用于初始化镜像列表（不需要等待项目表格）
+async function initHarborImages() {
+    try {
+        const projects = await fetchHarborProjects();
+        const projectSelect = document.getElementById('harborProjectSelect');
+        if (projectSelect && projects && projects.length > 0) {
+            projectSelect.innerHTML = projects.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+            if (projects.some(p => p.name === 'library')) {
+                projectSelect.value = 'library';
+            } else if (projects.length > 0) {
+                projectSelect.value = projects[0].name;
+            }
+            // 加载镜像
+            loadHarborImages();
+        }
+    } catch(e) {
+        console.error('初始化镜像失败:', e);
+    }
+}
+
+
+
+// ========== 自动登录 ==========
+async function autoLoginAutotest() {
+    try {
+        const res = await fetch('/autotest-api/api/auth/login', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username:'tuxiaoman',password:'123456'})
+        });
+        const data = await res.json();
+        if (data.code === 0) {
+            document.getElementById('autotestIframe').src = getConfig('AutoTest') + `?token=${data.data.token}`;
+        }
+    } catch(e) { console.error(e); }
+}
+
+// ========== 初始化 ==========
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadConfig();
+    loadSidebarState();
+    loadCurrentUser();
+
+    // ✅ 先加载仪表盘核心数据（关键）
+    fetchDashboardData();
+
+    // ✅ 健康检查延迟到 2 秒后执行，不阻塞首屏
+    setTimeout(() => {
+        checkAPIServerHealth();
+        checkClusterHealth();
+    }, 2000);
+
+    // ✅ Harbor 等模块延迟到 3 秒后加载
+    setTimeout(() => {
+        loadHarborProjectsPage();
+        initHarborImages();
+    }, 3000);
+
+    // ✅ 单个定时器管理所有刷新
+    setInterval(() => {
+        const activePage = document.querySelector('.page.active')?.id;
+        if (activePage === 'dashboard') {
+            fetchDashboardData();
+            // 健康检查使用缓存，不频繁请求
+            checkAPIServerHealth();
+            checkClusterHealth();
+        } else if (activePage === 'pods') {
+            fetchPodsList();
+        } else if (activePage === 'nodes') {
+            fetchNodesList();
+        }
+    }, 30000);
+});
+
+// 注意：移除了原来的两个 setInterval，合并到上面的单个定时器中
+// 之前的定时器：setInterval 30秒刷新仪表盘，setInterval 10秒检查健康
+// 现在统一为30秒刷新一次
+</script>
+</body>
+</html>

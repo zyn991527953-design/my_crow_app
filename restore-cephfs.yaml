@@ -1,0 +1,15 @@
+# restore-cephfs.yaml
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: cephfs
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    name: cephfs-metadata  # 指定已有的元数据池
+  dataPools:
+    - name: cephfs-data0    # 指定已有的数据池
+  preservePoolsOnDelete: true
+  metadataServer:
+    activeCount: 1
+    activeStandby: true

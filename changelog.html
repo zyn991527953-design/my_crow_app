@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>版本更新日志 - K8s DevOps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            padding: 24px 30px;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+        }
+        .header h1 {
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .version-list {
+            padding: 20px 30px;
+        }
+        .version-item {
+            border-bottom: 1px solid #e4e7ed;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        .version-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .version-item h3 {
+            color: #1890ff;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        .version-item ul {
+            margin-left: 20px;
+            color: #606266;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        .version-item li {
+            margin-bottom: 6px;
+        }
+        .footer {
+            padding: 16px 30px;
+            border-top: 1px solid #e4e7ed;
+            text-align: center;
+            background: #fafafa;
+        }
+        .close-btn {
+            padding: 8px 24px;
+            background: #409eff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .close-btn:hover {
+            background: #66b1ff;
+        }
+        .badge {
+            display: inline-block;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📦 版本更新日志</h1>
+        <p style="margin-top: 8px; opacity: 0.8;">K8s DevOps 集成中台 - 持续迭代</p>
+    </div>
+    <div class="version-list">
+        <div class="version-item">
+            <h3>v1.0.4 <span class="badge">最新</span> (2026-06-08)</h3>
+            <ul>
+                <li>✨ 新增：Harbor 镜像上传功能（支持 tar 包上传）</li>
+                <li>✨ 新增：Harbor 镜像下载功能（导出 tar 包）</li>
+                <li>✨ 新增：Harbor 项目创建功能</li>
+                <li>✨ 新增：Harbor 项目删除功能（有镜像的项目禁止删除）</li>
+                <li>✨ 新增：API Server 健康检查</li>
+                <li>✨ 新增：etcd 集群健康检查</li>
+                <li>✨ 新增：OOM 事件监控</li>
+                <li>✨ 新增：慢节点检测</li>
+                <li>✨ 新增：网络异常检查</li>
+                <li>✨ 新增：侧边栏版本号显示（点击查看更新日志）</li>
+                <li>✨ 新增：侧边栏标题动态特效（光效闪烁）</li>
+                <li>🐛 修复：Harbor 项目页面加载失败问题</li>
+                <li>🐛 修复：镜像列表分页显示问题</li>
+                <li>📝 优化：用户信息弹窗样式</li>
+            </ul>
+        </div>
+        <div class="version-item">
+            <h3>v1.0.3 (2026-06-05)</h3>
+            <ul>
+                <li>✨ 新增：镜像打包功能</li>
+                <li>✨ 新增：用户个人信息管理</li>
+                <li>🐛 修复：侧边栏缩窄模式显示问题</li>
+                <li>🐛 修复：表格样式错乱问题</li>
+                <li>📝 优化：页面加载性能</li>
+            </ul>
+        </div>
+        <div class="version-item">
+            <h3>v1.0.2 (2026-05-20)</h3>
+            <ul>
+                <li>✨ 新增：集群调度增强版</li>
+                <li>✨ 新增：Harbor 镜像仓库集成</li>
+                <li>🐛 修复：Deployment 详情页显示问题</li>
+            </ul>
+        </div>
+        <div class="version-item">
+            <h3>v1.0.1 (2026-05-01)</h3>
+            <ul>
+                <li>✨ 新增：Ceph 存储管理</li>
+                <li>✨ 新增：Pod 终端和文件浏览器</li>
+                <li>📝 优化：侧边栏菜单交互</li>
+            </ul>
+        </div>
+    </div>
+    <div class="footer">
+        <button class="close-btn" onclick="window.close()">关闭</button>
+    </div>
+</div>
+</body>
+</html>

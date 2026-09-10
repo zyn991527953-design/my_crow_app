@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Deployment 详情 - Kuboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
+	<script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links/lib/xterm-addon-web-links.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f0f2f6;
+            color: #1f2937;
+        }
+        .top-bar {
+            background: #ffffff;
+            border-bottom: 1px solid #e4e7ed;
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .logo {
+            font-size: 18px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #1890ff, #096dd9);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .nav-path {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .nav-path a {
+            color: #1890ff;
+            text-decoration: none;
+        }
+        .nav-path a:hover { text-decoration: underline; }
+        .user-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #1890ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+        .main-container {
+            padding: 20px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .page-header {
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e4e7ed;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .page-title .badge {
+            background: #e6f7ff;
+            color: #1890ff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 400;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            background: white;
+            border: 1px solid #d9d9d9;
+            color: #595959;
+        }
+        .btn-primary {
+            background: #1890ff;
+            border-color: #1890ff;
+            color: white;
+        }
+        .btn-primary:hover { background: #40a9ff; }
+        .btn-outline:hover { border-color: #1890ff; color: #1890ff; }
+        .btn-danger {
+            background: #ff4d4f;
+            border-color: #ff4d4f;
+            color: white;
+        }
+        .btn-danger:hover { background: #ff7875; }
+        .btn-success {
+            background: #52c41a;
+            border-color: #52c41a;
+            color: white;
+        }
+        .btn-success:hover { background: #73d13d; }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e4e7ed;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid #e4e7ed;
+            background: #fafafa;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #8c8c8c;
+        }
+        .info-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: #262626;
+            word-break: break-all;
+        }
+        .label-tag {
+            display: inline-block;
+            background: #f5f5f5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px 4px 2px 0;
+            font-family: monospace;
+        }
+        .label-tag .key { color: #1890ff; }
+        .pod-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .pod-table th {
+            text-align: left;
+            padding: 12px 12px;
+            background: #fafafa;
+            font-weight: 600;
+            color: #8c8c8c;
+            border-bottom: 1px solid #e4e7ed;
+        }
+        .pod-table td {
+            padding: 12px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+        .pod-table tr:hover { background: #fafafa; }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-Running { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .status-Pending { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
+        .status-Failed { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+        .status-Succeeded { background: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; }
+        .pod-name {
+            font-family: monospace;
+            font-size: 12px;
+            color: #1890ff;
+            cursor: pointer;
+        }
+        .pod-name:hover { text-decoration: underline; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 900px;
+            max-width: 90%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e4e7ed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .modal-close {
+            cursor: pointer;
+            font-size: 20px;
+            color: #8c8c8c;
+        }
+        .modal-close:hover { color: #ff4d4f; }
+        .quick-nav {
+            position: fixed;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            border-radius: 8px;
+            padding: 8px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 12px;
+            z-index: 90;
+            border: 1px solid #e4e7ed;
+        }
+        .quick-nav a {
+            display: block;
+            padding: 8px 16px;
+            color: #595959;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .quick-nav a:hover {
+            background: #e6f7ff;
+            color: #1890ff;
+        }
+        .loader {
+            text-align: center;
+            padding: 40px;
+            color: #8c8c8c;
+        }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 2px solid #f0f0f0;
+            border-top-color: #1890ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .yaml-editor {
+            width: 100%;
+            min-height: 400px;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .terminal-container {
+            background: #1e1e1e;
+            border-radius: 4px;
+            padding: 16px;
+            font-family: monospace;
+        }
+        .terminal-input {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .terminal-input input {
+            flex: 1;
+            background: #2d2d2d;
+            border: none;
+            color: #d4d4d4;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .terminal-output {
+            max-height: 300px;
+            overflow-y: auto;
+            color: #d4d4d4;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .file-browser {
+            background: #fafafa;
+            border-radius: 4px;
+            padding: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .file-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .file-item:hover { background: #f0f0f0; }
+        .file-item.dir { color: #1890ff; }
+        .file-item.file { color: #595959; }
+        .breadcrumb {
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-family: monospace;
+        }
+
+
+	.btn-sm {
+    padding: 2px 8px;
+    font-size: 11px;
+    background: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.btn-sm-danger {
+    background: #dc3545;
+}
+
+
+
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo-area">
+        <span class="logo">🐳 Kuboard</span>
+        <div class="nav-path">
+            <a href="#">首页</a>
+            <span>/</span>
+            <a href="#" id="namespaceLink">cattle-system</a>
+            <span>/</span>
+            <span id="deployName">cccccccc</span>
+        </div>
+    </div>
+    <div class="user-area">
+        <span>kuboard-admin</span>
+        <div class="user-avatar">A</div>
+    </div>
+</div>
+
+<div class="quick-nav">
+    <a href="#meta">📋 元数据</a>
+    <a href="#runtime">⚙️ 运行时</a>
+    <a href="#service">🌐 服务</a>
+    <a href="#route">🗺️ 应用路由</a>
+    <a href="#pods">📦 容器组</a>
+    <a href="#events">📊 事件</a>
+</div>
+
+<div class="main-container">
+    <div class="page-header">
+        <div class="page-title">
+            Deployment
+            <span class="badge">v1.28.2</span>
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="editYaml()">✏️ 编辑</button>
+            <button class="btn btn-outline" onclick="previewYaml()">📄 YAML</button>
+            <button class="btn btn-outline" onclick="scaleDeployment()">📊 伸缩</button>
+            <button class="btn btn-outline" onclick="showLogs()">📋 日志</button>
+            <button class="btn btn-outline" onclick="restartDeployment()">🔄 重启</button>
+	        <!-- 新增：终端和文件按钮 -->
+	    <button class="btn btn-outline" onclick="openDeploymentTerminal()">💻 终端</button>
+	    <button class="btn btn-outline" onclick="openDeploymentFileBrowser()">📁 文件</button>
+            <button class="btn btn-danger" onclick="deleteDeployment()">🗑️ 删除</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">📊 伸缩</div>
+        <div class="card-body">
+            <div style="display: flex; gap: 32px; flex-wrap: wrap;">
+                <div><span style="color:#8c8c8c;">期望:</span> <strong id="desiredReplicas">-</strong></div>
+                <div><span style="color:#8c8c8c;">当前:</span> <strong id="currentReplicas">-</strong></div>
+                <div><span style="color:#8c8c8c;">就绪:</span> <strong id="readyReplicas">-</strong></div>
+                <div><span style="color:#8c8c8c;">可用:</span> <strong id="availableReplicas">-</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="meta" class="card">
+        <div class="card-header">📋 元数据</div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-item"><span class="info-label">名称</span><span class="info-value" id="metaName">-</span></div>
+                <div class="info-item"><span class="info-label">命名空间</span><span class="info-value" id="metaNamespace">-</span></div>
+                <div class="info-item"><span class="info-label">UID</span><span class="info-value" id="metaUid">-</span></div>
+                <div class="info-item"><span class="info-label">创建时间</span><span class="info-value" id="metaCreation">-</span></div>
+                <div class="info-item"><span class="info-label">标签</span><div class="info-value" id="metaLabels">-</div></div>
+                <div class="info-item"><span class="info-label">注解</span><div class="info-value" id="metaAnnotations">-</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="runtime" class="card">
+        <div class="card-header">⚙️ 运行时</div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-item"><span class="info-label">CPU</span><span class="info-value" id="runtimeCpu">-</span></div>
+                <div class="info-item"><span class="info-label">内存</span><span class="info-value" id="runtimeMemory">-</span></div>
+                <div class="info-item"><span class="info-label">镜像</span><span class="info-value" id="runtimeImage">-</span></div>
+                <div class="info-item"><span class="info-label">镜像拉取策略</span><span class="info-value" id="runtimePullPolicy">-</span></div>
+                <div class="info-item"><span class="info-label">命令</span><span class="info-value" id="runtimeCommand">-</span></div>
+                <div class="info-item"><span class="info-label">环境变量</span><div class="info-value" id="runtimeEnv">-</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="service" class="card">
+        <div class="card-header">🌐 服务 (Service)</div>
+        <div class="card-body"><div id="serviceList">加载中...</div></div>
+    </div>
+
+    <div id="route" class="card">
+        <div class="card-header">🗺️ 应用路由 (Ingress)</div>
+        <div class="card-body"><div id="routeList">加载中...</div></div>
+    </div>
+
+    <div id="events" class="card">
+        <div class="card-header">📊 事件 (Events)</div>
+        <div class="card-body"><div id="eventList">加载中...</div></div>
+    </div>
+
+
+    <div id="pods" class="card">
+        <div class="card-header">
+            <span>📦 容器组 (Pods)</span>
+            <button class="btn btn-outline" style="padding: 4px 12px;" onclick="loadDeploymentDetail()">刷新</button>
+        </div>
+        <div class="card-body"><div id="podList">加载中...</div></div>
+    </div>
+
+</div>
+
+<!-- YAML 编辑模态框 -->
+<div id="yamlModal" class="modal">
+    <div class="modal-content" style="width: 1000px;">
+        <div class="modal-header">
+            <span>📝 编辑 Deployment YAML</span>
+            <span class="modal-close" onclick="closeYamlModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <textarea id="yamlEditor" class="yaml-editor" rows="20"></textarea>
+        </div>
+        <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #e4e7ed; display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-outline" onclick="closeYamlModal()">取消</button>
+            <button class="btn btn-primary" onclick="applyYaml()">应用</button>
+        </div>
+    </div>
+</div>
+
+<!-- 日志模态框 -->
+<div id="logModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>📋 Pod 日志</span>
+            <span class="modal-close" onclick="closeLogModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <select id="logPodSelect" style="padding: 6px; border-radius: 4px; border: 1px solid #d9d9d9; min-width: 200px;"></select>
+                <label><input type="checkbox" id="logPrevious"> 上次日志</label>
+                <label><input type="checkbox" id="logFollow" onchange="toggleFollow()"> 实时跟踪</label>
+                <button class="btn btn-outline" onclick="fetchLogs()">刷新</button>
+                <button class="btn btn-outline" onclick="clearLogs()">清空</button>
+            </div>
+            <div id="logContainer" class="log-container">选择 Pod 查看日志...</div>
+        </div>
+    </div>
+</div>
+
+<!-- 终端模态框 -->
+<div id="terminalModal" class="modal">
+    <div class="modal-content" style="width: 900px;">
+        <div class="modal-header">
+            <span>💻 终端 - <span id="terminalPodName"></span></span>
+            <span class="modal-close" onclick="closeTerminalModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+                <button class="btn btn-outline" onclick="openShell('/bin/sh')">/bin/sh</button>
+                <button class="btn btn-outline" onclick="openShell('/bin/bash')">/bin/bash</button>
+                <button class="btn btn-outline" onclick="openShell('sh')">sh</button>
+            </div>
+            <div id="terminalOutput" class="terminal-output" style="height: 400px; overflow-y: auto; background: #1e1e1e; padding: 12px; border-radius: 4px;"></div>
+            <div class="terminal-input">
+                <span style="color: #52c41a;">$&nbsp;</span>
+                <input type="text" id="terminalCommand" placeholder="输入命令..." style="flex:1; background: #2d2d2d; border: none; color: #d4d4d4; padding: 8px; border-radius: 4px; font-family: monospace;" onkeypress="if(event.key==='Enter') executeCommand()">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 文件浏览器模态框 -->
+<div id="fileBrowserModal" class="modal">
+    <div class="modal-content" style="width: 800px;">
+        <div class="modal-header">
+            <span>📁 文件浏览器 - <span id="fileBrowserPodName"></span></span>
+            <span class="modal-close" onclick="closeFileBrowserModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="breadcrumb" id="fileBrowserPath">/</div>
+            <div id="fileBrowserContent" class="file-browser"></div>
+            <div style="margin-top: 12px;">
+                <span id="fileViewerContent" style="display:none;"></span>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #e4e7ed; display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-outline" onclick="closeFileBrowserModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDeployment = null;
+let currentNamespace = 'cattle-system';
+let currentDeploymentName = 'ccccccccccccccccccccc-k8s-workers-5';
+let logFollowInterval = null;
+let currentTerminalPod = null;
+let currentTerminalShell = null;
+
+function getUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    currentNamespace = params.get('namespace') || 'cattle-system';
+    currentDeploymentName = params.get('deployment') || 'ccccccccccccccccccccc-k8s-workers-5';
+    document.getElementById('namespaceLink').innerHTML = `<a href="#">${currentNamespace}</a>`;
+    document.getElementById('deployName').innerText = currentDeploymentName;
+    if (params.get('deployment')) loadDeploymentDetail();
+}
+
+async function loadDeploymentDetail() {
+    document.getElementById('podList').innerHTML = '<div class="loader"><div class="spinner"></div>加载中...</div>';
+    const apiUrl = `/api/deployments/${currentNamespace}/${currentDeploymentName}`;
+    const podsUrl = `/api/pods?namespace=${currentNamespace}`;
+    const eventsUrl = `/api/events?namespace=${currentNamespace}`;
+    const servicesUrl = `/api/services?namespace=${currentNamespace}`;
+    const ingressesUrl = `/api/ingresses?namespace=${currentNamespace}`;
+
+    try {
+        const [deployRes, podsRes, eventsRes, servicesRes, ingressesRes] = await Promise.all([
+            fetch(apiUrl).catch(e => ({ ok: false })),
+            fetch(podsUrl).catch(e => ({ ok: false })),
+            fetch(eventsUrl).catch(e => ({ ok: false })),
+            fetch(servicesUrl).catch(e => ({ ok: false })),
+            fetch(ingressesUrl).catch(e => ({ ok: false }))
+        ]);
+
+        if (deployRes.ok) currentDeployment = await deployRes.json();
+
+        let allPods = [];
+        if (podsRes.ok) {
+            const podsData = await podsRes.json();
+            allPods = podsData.items || podsData;
+            if (Array.isArray(allPods) && allPods.length > 0 && !allPods[0].metadata) {
+                allPods = allPods.map(p => ({
+                    metadata: { name: p.name, namespace: p.namespace, creationTimestamp: new Date().toISOString() },
+                    spec: { nodeName: p.node },
+                    status: { phase: p.status, podIP: p.ip, containerStatuses: [{ restartCount: p.restarts || 0 }] }
+                }));
+            }
+        }
+
+        let events = [], services = [], ingresses = [];
+        if (eventsRes.ok) { const data = await eventsRes.json(); events = data.items || data; }
+        if (servicesRes.ok) { const data = await servicesRes.json(); services = data.items || data; }
+        if (ingressesRes.ok) { const data = await ingressesRes.json(); ingresses = data.items || data; }
+
+        const deploymentEvents = events.filter(e => {
+            const involved = e.involvedObject || {};
+            return involved.kind === 'Deployment' && involved.name === currentDeploymentName;
+        });
+
+        renderMetadata(currentDeployment);
+        renderRuntime(currentDeployment);
+        renderServices(services);
+        renderIngresses(ingresses);
+        renderPods(allPods);
+        renderEvents(deploymentEvents);
+        renderScaleInfo(currentDeployment);
+    } catch(e) {
+        console.error(e);
+        document.getElementById('podList').innerHTML = '<div class="loader">加载失败: ' + e.message + '</div>';
+    }
+}
+
+function renderMetadata(deploy) {
+    if (!deploy) return;
+    const meta = deploy.metadata || {};
+    document.getElementById('metaName').innerText = meta.name || '-';
+    document.getElementById('metaNamespace').innerText = meta.namespace || '-';
+    document.getElementById('metaUid').innerText = meta.uid || '-';
+    document.getElementById('metaCreation').innerText = new Date(meta.creationTimestamp).toLocaleString() || '-';
+    const labels = meta.labels || {};
+    document.getElementById('metaLabels').innerHTML = Object.entries(labels).map(([k,v]) => `<span class="label-tag"><span class="key">${k}</span>: ${v}</span>`).join('') || '-';
+    const annotations = meta.annotations || {};
+    document.getElementById('metaAnnotations').innerHTML = Object.entries(annotations).slice(0,5).map(([k,v]) => `<span class="label-tag">${k}=${v.substring(0,50)}</span>`).join('') || '-';
+}
+
+function renderRuntime(deploy) {
+    if (!deploy) return;
+    const container = deploy.spec?.template?.spec?.containers?.[0] || {};
+    const resources = container.resources || {};
+    document.getElementById('runtimeCpu').innerHTML = `${resources.requests?.cpu || '-'} / ${resources.limits?.cpu || '-'}`;
+    document.getElementById('runtimeMemory').innerHTML = `${resources.requests?.memory || '-'} / ${resources.limits?.memory || '-'}`;
+    document.getElementById('runtimeImage').innerText = container.image || '-';
+    document.getElementById('runtimePullPolicy').innerText = container.imagePullPolicy || 'Always';
+    document.getElementById('runtimeCommand').innerText = (container.command || []).join(' ') || '-';
+    document.getElementById('runtimeEnv').innerHTML = (container.env || []).slice(0,5).map(e => `<span class="label-tag">${e.name}=${e.value || '...'}</span>`).join('') || '-';
+}
+
+function renderServices(services) {
+    const container = document.getElementById('serviceList');
+    if (!services.length) { container.innerHTML = '<div style="color:#8c8c8c;">暂无服务</div>'; return; }
+    container.innerHTML = services.map(svc => {
+        const meta = svc.metadata || {};
+        const spec = svc.spec || {};
+        return `<div style="margin-bottom:12px;padding:12px;background:#fafafa;border-radius:4px;"><div><strong>${meta.name}</strong> <span style="color:#8c8c8c;">(${spec.type || 'ClusterIP'})</span></div><div style="font-size:12px;color:#8c8c8c;margin-top:8px;">ClusterIP: ${spec.clusterIP || '-'} | 端口: ${(spec.ports || []).map(p => `${p.port}/${p.protocol}→${p.targetPort}`).join(', ')}</div></div>`;
+    }).join('');
+}
+
+function renderIngresses(ingresses) {
+    const container = document.getElementById('routeList');
+    if (!ingresses.length) { container.innerHTML = '<div style="color:#8c8c8c;">暂无 Ingress</div>'; return; }
+    container.innerHTML = ingresses.map(ing => {
+        const meta = ing.metadata || {};
+        const spec = ing.spec || {};
+        return `<div style="margin-bottom:12px;padding:12px;background:#fafafa;border-radius:4px;"><div><strong>${meta.name}</strong></div>${(spec.rules || []).map(rule => `<div style="font-size:12px;margin-top:8px;">🚪 ${rule.host || '*'}${(rule.http?.paths || []).map(p => ` → ${p.path || '/'} → ${p.backend?.service?.name}:${p.backend?.service?.port?.number}`).join('')}</div>`).join('')}</div>`;
+    }).join('');
+}
+
+function renderPods(pods) {
+    const container = document.getElementById('podList');
+    if (!pods || !pods.length) { container.innerHTML = '<div style="color:#8c8c8c;">暂无 Pod</div>'; return; }
+    container.innerHTML = `<table class="pod-table"><thead><tr><th>名称</th><th>节点</th><th>IP</th><th>状态</th><th>重启次数</th><th>年龄</th><th>操作</th></tr></thead><tbody>${pods.map(pod => {
+        let name = pod.metadata?.name || pod.name || '-';
+        let namespace = pod.metadata?.namespace || pod.namespace || '-';
+        let nodeName = pod.spec?.nodeName || pod.node || '-';
+        let podIP = pod.status?.podIP || pod.ip || '-';
+        let phase = pod.status?.phase || pod.status || 'Unknown';
+        let restartCount = pod.status?.containerStatuses?.[0]?.restartCount || pod.restarts || 0;
+        let age = pod.metadata?.creationTimestamp ? Math.floor((Date.now() - new Date(pod.metadata.creationTimestamp)) / 1000 / 60) + 'm' : (pod.age || '-');
+        const statusClass = phase === 'Running' ? 'status-Running' : (phase === 'Pending' ? 'status-Pending' : (phase === 'Failed' ? 'status-Failed' : 'status-Succeeded'));
+        return `<tr><td><span class="pod-name" onclick="showPodLogs('${namespace}', '${name}')">${name}</span></td><td>${nodeName}</td><td>${podIP}</td><td><span class="status-badge ${statusClass}">${phase}</span></td><td>${restartCount}</td><td>${age}</td><td><div style="display:flex;gap:4px;"><button class="btn btn-outline" style="padding:2px 8px;" onclick="showPodLogs('${namespace}', '${name}')">日志</button><button class="btn btn-outline" style="padding:2px 8px;" onclick="openTerminal('${namespace}', '${name}')">终端</button><button class="btn btn-outline" style="padding:2px 8px;" onclick="openFileBrowser('${namespace}', '${name}')">文件</button></div></td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function renderEvents(events) {
+    const container = document.getElementById('eventList');
+    if (!events.length) { container.innerHTML = '<div style="color:#8c8c8c;">暂无事件</div>'; return; }
+    container.innerHTML = `<table class="pod-table"><thead><tr><th>类型</th><th>原因</th><th>消息</th><th>次数</th><th>时间</th></tr></thead><tbody>${events.slice(0,20).map(e => `<tr><td><span class="status-badge ${e.type === 'Normal' ? 'status-Running' : 'status-Failed'}">${e.type || '-'}</span></td><td>${e.reason || '-'}</td><td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;">${e.message || '-'}</td><td>${e.count || 1}</td><td>${new Date(e.lastTimestamp).toLocaleString()}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function renderScaleInfo(deploy) {
+    if (!deploy) return;
+    document.getElementById('desiredReplicas').innerText = deploy.spec?.replicas || 0;
+    document.getElementById('currentReplicas').innerText = deploy.status?.replicas || 0;
+    document.getElementById('readyReplicas').innerText = deploy.status?.readyReplicas || 0;
+    document.getElementById('availableReplicas').innerText = deploy.status?.availableReplicas || 0;
+}
+
+// ========== YAML 编辑功能 ==========
+async function editYaml() {
+    try {
+        const res = await fetch(`/api/deployments/${currentNamespace}/${currentDeploymentName}`);
+        const deploy = await res.json();
+        document.getElementById('yamlEditor').value = JSON.stringify(deploy, null, 2);
+        document.getElementById('yamlModal').style.display = 'flex';
+    } catch(e) { alert('获取 YAML 失败: ' + e.message); }
+}
+
+function previewYaml() {
+    editYaml();
+}
+
+function closeYamlModal() {
+    document.getElementById('yamlModal').style.display = 'none';
+}
+
+async function applyYaml() {
+    const yaml = document.getElementById('yamlEditor').value;
+    try {
+        const res = await fetch(`/api/deployments/${currentNamespace}/${currentDeploymentName}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: yaml
+        });
+        if (res.ok) {
+            alert('✅ YAML 已应用');
+            closeYamlModal();
+            loadDeploymentDetail();
+        } else {
+            alert('❌ 应用失败: ' + await res.text());
+        }
+    } catch(e) { alert('请求失败: ' + e.message); }
+}
+
+// ========== 伸缩功能 ==========
+async function scaleDeployment1() {
+    let replicas = prompt("输入副本数:", document.getElementById('desiredReplicas').innerText);
+    if (replicas === null) return;
+    replicas = parseInt(replicas);
+    if (isNaN(replicas)) { alert('请输入有效的数字'); return; }
+    try {
+        const res = await fetch(`/api/deployments/${currentNamespace}/${currentDeploymentName}/scale`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ spec: { replicas: replicas } })
+        });
+        if (res.ok) {
+            alert(`✅ 已伸缩到 ${replicas} 个副本`);
+            loadDeploymentDetail();
+        } else {
+            alert('❌ 伸缩失败');
+        }
+    } catch(e) { alert('请求失败: ' + e.message); }
+}
+
+
+async function scaleDeployment() {
+    let replicas = prompt("输入副本数:", document.getElementById('desiredReplicas').innerText);
+    if (replicas === null) return;
+    replicas = parseInt(replicas);
+    if (isNaN(replicas)) { alert('请输入有效的数字'); return; }
+    try {
+        const res = await fetch(`/api/deployments/${currentNamespace}/${currentDeploymentName}/scale`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ spec: { replicas: replicas } })
+        });
+        if (res.ok) {
+            alert(`✅ 已伸缩到 ${replicas} 个副本`);
+            loadDeploymentDetail();
+        } else {
+            const err = await res.text();
+            alert('❌ 伸缩失败: ' + err);
+        }
+    } catch(e) { alert('请求失败: ' + e.message); }
+}
+
+
+// ========== 重启功能 ==========
+async function restartDeployment() {
+    if (!confirm("确定重启 Deployment？")) return;
+    try {
+        const res = await fetch(`/api/deployments/${currentNamespace}/${currentDeploymentName}/restart`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            alert('✅ 重启请求已发送');
+            loadDeploymentDetail();
+        } else {
+            alert('❌ 重启失败');
+        }
+    } catch(e) { alert('请求失败: ' + e.message); }
+}
+
+
+// ========== Deployment 级别的终端功能 ==========
+async function openDeploymentTerminal() {
+    // 获取该 Deployment 下的第一个 Pod
+    try {
+        const podsUrl = `/api/pods?namespace=${currentNamespace}`;
+        const res = await fetch(podsUrl);
+        const data = await res.json();
+        let pods = data.items || data;
+        
+        // 过滤属于当前 Deployment 的 Pod
+        const deploymentPods = pods.filter(pod => {
+            const podName = pod.metadata?.name || pod.name || '';
+            return podName.startsWith(currentDeploymentName);
+        });
+        
+        if (deploymentPods.length === 0) {
+            alert('没有找到可用的 Pod');
+            return;
+        }
+        
+        // 选择第一个 Running 状态的 Pod，或者第一个
+        let targetPod = deploymentPods.find(pod => {
+            const phase = pod.status?.phase || pod.status || '';
+            return phase === 'Running';
+        }) || deploymentPods[0];
+        
+        const podName = targetPod.metadata?.name || targetPod.name;
+        openTerminal(currentNamespace, podName);
+    } catch(e) {
+        alert('获取 Pod 失败: ' + e.message);
+    }
+}
+
+// ========== Deployment 级别的文件浏览器功能 ==========
+async function openDeploymentFileBrowser() {
+    // 获取该 Deployment 下的第一个 Pod
+    try {
+        const podsUrl = `/api/pods?namespace=${currentNamespace}`;
+        const res = await fetch(podsUrl);
+        const data = await res.json();
+        let pods = data.items || data;
+        
+        // 过滤属于当前 Deployment 的 Pod
+        const deploymentPods = pods.filter(pod => {
+            const podName = pod.metadata?.name || pod.name || '';
+            return podName.startsWith(currentDeploymentName);
+        });
+        
+        if (deploymentPods.length === 0) {
+            alert('没有找到可用的 Pod');
+            return;
+        }
+        
+        // 选择第一个 Running 状态的 Pod，或者第一个
+        let targetPod = deploymentPods.find(pod => {
+            const phase = pod.status?.phase || pod.status || '';
+            return phase === 'Running';
+        }) || deploymentPods[0];
+        
+        const podName = targetPod.metadata?.name || targetPod.name;
+        openFileBrowser(currentNamespace, podName);
+    } catch(e) {
+        alert('获取 Pod 失败: ' + e.message);
+    }
+}
+
+
+
+
+// ========== 删除功能 ==========
+async function deleteDeployment() {
+    if (!confirm(`确定删除 Deployment "${currentDeploymentName}"？`)) return;
+    try {
+        const res = await fetch(`/api/deployments/${currentNamespace}/${currentDeploymentName}`, {
+            method: 'DELETE'
+        });
+        if (res.ok) {
+            alert('✅ Deployment 已删除');
+            window.location.href = '/';
+        } else {
+            alert('❌ 删除失败');
+        }
+    } catch(e) { alert('请求失败: ' + e.message); }
+}
+
+// ========== 日志功能 ==========
+function showLogs() {
+    document.getElementById('logModal').style.display = 'flex';
+    loadPodListForLogs();
+}
+
+async function loadPodListForLogs() {
+    const res = await fetch(`/api/pods?namespace=${currentNamespace}`);
+    const data = await res.json();
+    let pods = data.items || data;
+    if (Array.isArray(pods) && pods.length > 0 && !pods[0].metadata) {
+        pods = pods.map(p => ({ metadata: { name: p.name, namespace: p.namespace } }));
+    }
+    const select = document.getElementById('logPodSelect');
+    select.innerHTML = pods.map(p => `<option value="${p.metadata?.name || p.name}">${p.metadata?.name || p.name}</option>`).join('');
+    if (select.options.length) fetchLogs();
+}
+
+function toggleFollow() {
+    if (document.getElementById('logFollow').checked) {
+        if (logFollowInterval) clearInterval(logFollowInterval);
+        logFollowInterval = setInterval(fetchLogs, 2000);
+    } else {
+        if (logFollowInterval) {
+            clearInterval(logFollowInterval);
+            logFollowInterval = null;
+        }
+    }
+}
+
+function clearLogs() {
+    document.getElementById('logContainer').innerHTML = '';
+}
+
+async function fetchLogs() {
+    const pod = document.getElementById('logPodSelect').value;
+    if (!pod) return;
+    const previous = document.getElementById('logPrevious').checked;
+    try {
+        const res = await fetch(`/api/pods/${currentNamespace}/${pod}/logs?previous=${previous}`);
+        const logs = await res.text();
+        const container = document.getElementById('logContainer');
+        container.innerHTML = logs || '(无日志)';
+        container.scrollTop = container.scrollHeight;
+    } catch(e) {
+        document.getElementById('logContainer').innerHTML = '获取日志失败: ' + e.message;
+    }
+}
+
+function closeLogModal() {
+    if (logFollowInterval) {
+        clearInterval(logFollowInterval);
+        logFollowInterval = null;
+    }
+    document.getElementById('logModal').style.display = 'none';
+}
+
+
+
+
+let term = null;
+let ws = null;
+
+async function openTerminal(namespace, podName, containerName) {
+    document.getElementById('terminalModal').style.display = 'flex';
+    document.getElementById('terminalPodName').innerText = `${podName} (${containerName || 'app'})`;
+
+    const terminalContainer = document.getElementById('terminalOutput');
+    terminalContainer.innerHTML = '';
+
+    // 初始化 xterm.js
+    if (typeof Terminal === 'undefined') {
+        // 如果 xterm 未加载，动态加载
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js';
+        script.onload = () => {
+            initTerminal(namespace, podName, containerName);
+        };
+        document.head.appendChild(script);
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://cdn.jsdelivr.net/npm/xterm/css/xterm.css';
+        document.head.appendChild(link);
+    } else {
+        initTerminal(namespace, podName, containerName);
+    }
+}
+
+function initTerminal(namespace, podName, containerName) {
+    term = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        theme: {
+            background: '#1e1e1e',
+            foreground: '#d4d4d4',
+            cursor: '#d4d4d4'
+        }
+    });
+
+    const terminalContainer = document.getElementById('terminalOutput');
+    term.open(terminalContainer);
+
+    // 连接 WebSocket
+    const wsUrl = `ws://192.168.138.139:8082/ws?namespace=${namespace}&pod=${podName}&container=${containerName || 'app'}`;
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+        term.write('\r\n\x1b[32m✅ 已连接到容器\x1b[0m\r\n');
+        term.write('\x1b[36m# \x1b[0m');
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.operation === 'stdout') {
+            term.write(data.data);
+        }
+    };
+
+    ws.onerror = (error) => {
+        term.write('\r\n\x1b[31m❌ WebSocket 连接错误\x1b[0m\r\n');
+    };
+
+    ws.onclose = () => {
+        term.write('\r\n\x1b[33m⚠️ 连接已关闭\x1b[0m\r\n');
+    };
+
+    term.onData((data) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ operation: 'stdin', data: data }));
+        }
+    });
+
+    // 终端大小调整
+    window.addEventListener('resize', () => {
+        if (term) {
+            term.resize(term.cols, term.rows);
+        }
+    });
+}
+
+function closeTerminalModal() {
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
+    if (term) {
+        term.dispose();
+        term = null;
+    }
+    document.getElementById('terminalModal').style.display = 'none';
+}
+
+
+
+
+// ========== 终端功能 ==========
+async function openTerminal1(namespace, podName) {
+    currentTerminalPod = podName;
+    currentNamespace = namespace;
+    document.getElementById('terminalPodName').innerText = podName;
+    document.getElementById('terminalOutput').innerHTML = '<div style="color:#888;">连接终端...</div>';
+    document.getElementById('terminalModal').style.display = 'flex';
+    openShell('/bin/sh');
+}
+
+
+
+function closeTerminalModal() {
+    document.getElementById('terminalModal').style.display = 'none';
+    currentTerminalPod = null;
+}
+
+async function openShell(shell) {
+    currentTerminalShell = shell;
+    const output = document.getElementById('terminalOutput');
+    output.innerHTML = `<div style="color:#52c41a;">$ 连接到 ${currentTerminalPod} (${shell})...</div>`;
+    // 执行一个测试命令
+    await executeCommandInternal('echo "终端已连接，当前 Shell: ' + shell + '"');
+}
+
+async function executeCommand() {
+    const input = document.getElementById('terminalCommand');
+    const cmd = input.value.trim();
+    if (!cmd) return;
+    input.value = '';
+    await executeCommandInternal(cmd);
+}
+
+async function executeCommandInternal(cmd) {
+    const output = document.getElementById('terminalOutput');
+    output.innerHTML += `<div><span style="color:#52c41a;">$</span> ${escapeHtml(cmd)}</div>`;
+    try {
+        const res = await fetch(`/api/pods/${currentNamespace}/${currentTerminalPod}/exec`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: cmd, shell: currentTerminalShell })
+        });
+        const result = await res.text();
+        output.innerHTML += `<div style="color:#d4d4d4; white-space: pre-wrap;">${escapeHtml(result)}</div>`;
+    } catch(e) {
+        output.innerHTML += `<div style="color:#ff4d4f;">错误: ${escapeHtml(e.message)}</div>`;
+    }
+    output.scrollTop = output.scrollHeight;
+}
+
+// ========== 文件浏览器功能 ==========
+let currentFileBrowserPod = null;
+let currentFileBrowserPath = '/';
+
+async function openFileBrowser(namespace, podName) {
+    currentFileBrowserPod = podName;
+    currentNamespace = namespace;
+    currentFileBrowserPath = '/';
+    document.getElementById('fileBrowserPodName').innerText = podName;
+    document.getElementById('fileBrowserModal').style.display = 'flex';
+    await loadDirectory('/');
+}
+
+function closeFileBrowserModal() {
+    document.getElementById('fileBrowserModal').style.display = 'none';
+    currentFileBrowserPod = null;
+}
+
+
+
+async function loadDirectory(path) {
+    currentFileBrowserPath = path;
+    document.getElementById('fileBrowserPath').innerHTML = `📁 ${path}`;
+    const content = document.getElementById('fileBrowserContent');
+    content.innerHTML = '<div class="loader">加载中...</div>';
+    try {
+        const res = await fetch(`/api/pods/${currentNamespace}/${currentFileBrowserPod}/files/list?path=${encodeURIComponent(path)}`);
+        const files = await res.json();
+        
+        if (files.error) {
+            content.innerHTML = `<div style="color:#ff4d4f;">错误: ${files.error}</div>`;
+            return;
+        }
+        
+        content.innerHTML = `
+            <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="uploadFileToPod()">📤 上传文件</button>
+                <input type="file" id="uploadFileInput" style="display:none" onchange="doUploadFile()">
+            </div>
+            ${path !== '/' ? `<div class="file-item dir" onclick="loadDirectory('${getParentPath(path)}')">📁 .. (上级目录)</div>` : ''}
+            ${files.map(file => `
+                <div class="file-item ${file.isDir ? 'dir' : 'file'}">
+                    <div onclick="${file.isDir ? `loadDirectory('${path === '/' ? '/' + file.name : path + '/' + file.name}')` : `viewFile('${path === '/' ? '/' + file.name : path + '/' + file.name}')`}" style="flex:1; display:flex; align-items:center; gap:8px;">
+                        ${file.isDir ? '📁' : '📄'} ${file.name}
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                        ${!file.isDir ? `<button class="btn-sm" onclick="event.stopPropagation();downloadFile('${path === '/' ? '/' + file.name : path + '/' + file.name}')">下载</button>` : ''}
+                        <button class="btn-sm btn-danger" onclick="event.stopPropagation();deleteFile('${path === '/' ? '/' + file.name : path + '/' + file.name}')">删除</button>
+                    </div>
+                </div>
+            `).join('')}
+        `;
+    } catch(e) {
+        content.innerHTML = `<div style="color:#ff4d4f;">加载失败: ${e.message}</div>`;
+    }
+}
+
+function uploadFileToPod() {
+    document.getElementById('uploadFileInput').click();
+}
+
+async function doUploadFile1() {
+    const file = document.getElementById('uploadFileInput').files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const res = await fetch(`/api/pods/${currentNamespace}/${currentFileBrowserPod}/files/upload?path=${encodeURIComponent(currentFileBrowserPath)}`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert('上传成功: ' + result.filename);
+            loadDirectory(currentFileBrowserPath);
+        } else {
+            alert('上传失败: ' + result.error);
+        }
+    } catch(e) {
+        alert('上传失败: ' + e.message);
+    }
+    document.getElementById('uploadFileInput').value = '';
+}
+
+
+async function doUploadFile() {
+    const file = document.getElementById('uploadFileInput').files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // 关键修复：传递当前目录路径
+    const targetPath = currentFileBrowserPath;
+    
+    try {
+        const res = await fetch(`/api/pods/${currentNamespace}/${currentFileBrowserPod}/files/upload?targetPath=${encodeURIComponent(targetPath)}`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert('上传成功: ' + result.filename);
+            loadDirectory(currentFileBrowserPath);
+        } else {
+            alert('上传失败: ' + (result.error || '未知错误'));
+        }
+    } catch(e) {
+        alert('上传失败: ' + e.message);
+    }
+    document.getElementById('uploadFileInput').value = '';
+}
+
+
+async function downloadFile(filePath) {
+    window.open(`/api/pods/${currentNamespace}/${currentFileBrowserPod}/files/download?path=${encodeURIComponent(filePath)}`, '_blank');
+}
+
+async function deleteFile(filePath) {
+    if (!confirm(`确定删除 "${filePath}" 吗？`)) return;
+    
+    try {
+        const res = await fetch(`/api/pods/${currentNamespace}/${currentFileBrowserPod}/files/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: filePath })
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert('删除成功');
+            loadDirectory(currentFileBrowserPath);
+        } else {
+            alert('删除失败: ' + result.error);
+        }
+    } catch(e) {
+        alert('删除失败: ' + e.message);
+    }
+}
+
+
+
+
+
+async function loadDirectory1(path) {
+    currentFileBrowserPath = path;
+    document.getElementById('fileBrowserPath').innerHTML = `📁 ${path}`;
+    const content = document.getElementById('fileBrowserContent');
+    content.innerHTML = '<div class="loader">加载中...</div>';
+    try {
+        const res = await fetch(`/api/pods/${currentNamespace}/${currentFileBrowserPod}/files/list?path=${encodeURIComponent(path)}`);
+        const files = await res.json();
+
+        if (files.error) {
+            content.innerHTML = `<div style="color:#ff4d4f;">错误: ${files.error}</div>`;
+            return;
+        }
+
+        content.innerHTML = `
+            ${path !== '/' ? `<div class="file-item dir" onclick="loadDirectory('${getParentPath(path)}')">📁 .. (上级目录)</div>` : ''}
+            ${files.map(file => `
+                <div class="file-item ${file.isDir ? 'dir' : 'file'}" onclick="${file.isDir ? `loadDirectory('${path === '/' ? '/' + file.name : path + '/' + file.name}')` : `viewFile('${path === '/' ? '/' + file.name : path + '/' + file.name}')`}">
+                    ${file.isDir ? '📁' : '📄'} ${file.name}
+                </div>
+            `).join('')}
+        `;
+    } catch(e) {
+        content.innerHTML = `<div style="color:#ff4d4f;">加载失败: ${e.message}</div>`;
+    }
+}
+
+function getParentPath(path) {
+    if (path === '/') return '/';
+    const parts = path.split('/');
+    parts.pop();
+    return parts.join('/') || '/';
+}
+
+async function viewFile(filePath) {
+    const content = document.getElementById('fileBrowserContent');
+    content.innerHTML = '<div class="loader">加载中...</div>';
+    try {
+        const res = await fetch(`/api/pods/${currentNamespace}/${currentFileBrowserPod}/files/view?path=${encodeURIComponent(filePath)}`);
+        const data = await res.text();
+        content.innerHTML = `<pre style="background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:4px; overflow-x:auto; font-size:12px;">${escapeHtml(data)}</pre>`;
+    } catch(e) {
+        content.innerHTML = `<div style="color:#ff4d4f;">读取文件失败: ${e.message}</div>`;
+    }
+}
+
+
+
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+// ========== 显示 Pod 日志（从表格点击）==========
+async function showPodLogs(namespace, podName) {
+    currentNamespace = namespace;
+    document.getElementById('logModal').style.display = 'flex';
+    const select = document.getElementById('logPodSelect');
+    select.innerHTML = `<option value="${podName}">${podName}</option>`;
+    await fetchLogs();
+}
+
+// ========== 初始化 ==========
+getUrlParams();
+loadDeploymentDetail();
+setInterval(loadDeploymentDetail, 30000);
+</script>
+</body>
+</html>

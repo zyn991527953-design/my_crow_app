@@ -1,0 +1,12 @@
+FROM alpine:latest
+
+# 复制本地 nerdctl 二进制文件
+COPY nerdctl-1.7.6-linux-amd64.tar.gz /tmp/
+
+# 解压并安装
+RUN tar -C /usr/local/bin -xzf /tmp/nerdctl-1.7.6-linux-amd64.tar.gz && \
+    rm /tmp/nerdctl-1.7.6-linux-amd64.tar.gz && \
+    chmod +x /usr/local/bin/nerdctl
+
+ENTRYPOINT ["/usr/local/bin/nerdctl"]
+CMD ["--help"]

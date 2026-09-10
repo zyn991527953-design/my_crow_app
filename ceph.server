@@ -1,0 +1,17 @@
+# 创建 systemd 服务
+sudo tee /etc/systemd/system/cephfs-mount.service << 'EOF'
+[Unit]
+Description=CephFS Mount
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/ceph-fuse /mnt/cephfs --id admin --keyring /etc/ceph/ceph.client.admin.keyring
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable cephfs-mount

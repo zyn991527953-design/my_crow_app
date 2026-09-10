@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Deployment 详情 - Kuboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f0f2f6;
+            color: #1f2937;
+        }
+
+        /* 顶部导航栏 - Kuboard 风格 */
+        .top-bar {
+            background: #ffffff;
+            border-bottom: 1px solid #e4e7ed;
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .logo {
+            font-size: 18px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #1890ff, #096dd9);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .nav-path {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .nav-path a {
+            color: #1890ff;
+            text-decoration: none;
+        }
+        .nav-path a:hover { text-decoration: underline; }
+        .user-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #1890ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        /* 主容器 */
+        .main-container {
+            padding: 20px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 页面标题栏 */
+        .page-header {
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e4e7ed;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .page-title .badge {
+            background: #e6f7ff;
+            color: #1890ff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 400;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            background: white;
+            border: 1px solid #d9d9d9;
+            color: #595959;
+        }
+        .btn-primary {
+            background: #1890ff;
+            border-color: #1890ff;
+            color: white;
+        }
+        .btn-primary:hover { background: #40a9ff; }
+        .btn-outline:hover { border-color: #1890ff; color: #1890ff; }
+        .btn-danger {
+            background: #ff4d4f;
+            border-color: #ff4d4f;
+            color: white;
+        }
+        .btn-danger:hover { background: #ff7875; }
+
+        /* 卡片布局 */
+        .card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e4e7ed;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid #e4e7ed;
+            background: #fafafa;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-body {
+            padding: 20px;
+        }
+
+        /* 信息网格 */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #8c8c8c;
+        }
+        .info-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: #262626;
+            word-break: break-all;
+        }
+
+        /* 标签样式 */
+        .label-tag {
+            display: inline-block;
+            background: #f5f5f5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px 4px 2px 0;
+            font-family: monospace;
+        }
+        .label-tag .key { color: #1890ff; }
+
+        /* Pod 列表表格 */
+        .pod-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .pod-table th {
+            text-align: left;
+            padding: 12px 12px;
+            background: #fafafa;
+            font-weight: 600;
+            color: #8c8c8c;
+            border-bottom: 1px solid #e4e7ed;
+        }
+        .pod-table td {
+            padding: 12px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+        .pod-table tr:hover { background: #fafafa; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-Running { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .status-Pending { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
+        .status-Failed { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+        .status-Succeeded { background: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; }
+
+        .pod-name {
+            font-family: monospace;
+            font-size: 12px;
+            color: #1890ff;
+            cursor: pointer;
+        }
+        .pod-name:hover { text-decoration: underline; }
+
+        /* 日志模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 900px;
+            max-width: 90%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e4e7ed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .modal-close {
+            cursor: pointer;
+            font-size: 20px;
+            color: #8c8c8c;
+        }
+        .modal-close:hover { color: #ff4d4f; }
+
+        /* 右侧快速导航 */
+        .quick-nav {
+            position: fixed;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            border-radius: 8px;
+            padding: 8px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 12px;
+            z-index: 90;
+            border: 1px solid #e4e7ed;
+        }
+        .quick-nav a {
+            display: block;
+            padding: 8px 16px;
+            color: #595959;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .quick-nav a:hover {
+            background: #e6f7ff;
+            color: #1890ff;
+        }
+
+        .loader {
+            text-align: center;
+            padding: 40px;
+            color: #8c8c8c;
+        }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 2px solid #f0f0f0;
+            border-top-color: #1890ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo-area">
+        <span class="logo">🐳 Kuboard</span>
+        <div class="nav-path">
+            <a href="#">首页</a>
+            <span>/</span>
+            <a href="#" id="namespaceLink">cattle-system</a>
+            <span>/</span>
+            <span id="deployName">cccccccc</span>
+        </div>
+    </div>
+    <div class="user-area">
+        <span>kuboard-admin</span>
+        <div class="user-avatar">A</div>
+    </div>
+</div>
+
+<div class="quick-nav">
+    <a href="#meta">📋 元数据</a>
+    <a href="#runtime">⚙️ 运行时</a>
+    <a href="#service">🌐 服务</a>
+    <a href="#route">🗺️ 应用路由</a>
+    <a href="#pods">📦 容器组</a>
+    <a href="#events">📊 事件</a>
+</div>
+
+<div class="main-container">
+    <div class="page-header">
+        <div class="page-title">
+            Deployment
+            <span class="badge">v1.28.2</span>
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="editYaml()">✏️ 编辑</button>
+            <button class="btn btn-outline" onclick="previewYaml()">📄 YAML</button>
+            <button class="btn btn-outline" onclick="scaleDeployment()">📊 伸缩</button>
+            <button class="btn btn-outline" onclick="showLogs()">📋 日志</button>
+            <button class="btn btn-outline" onclick="restartDeployment()">🔄 重启</button>
+            <button class="btn btn-danger" onclick="deleteDeployment()">🗑️ 删除</button>
+        </div>
+    </div>
+
+    <!-- 伸缩信息 -->
+    <div class="card">
+        <div class="card-header">📊 伸缩</div>
+        <div class="card-body">
+            <div style="display: flex; gap: 32px; flex-wrap: wrap;">
+                <div><span style="color:#8c8c8c;">期望:</span> <strong id="desiredReplicas">-</strong></div>
+                <div><span style="color:#8c8c8c;">当前:</span> <strong id="currentReplicas">-</strong></div>
+                <div><span style="color:#8c8c8c;">就绪:</span> <strong id="readyReplicas">-</strong></div>
+                <div><span style="color:#8c8c8c;">可用:</span> <strong id="availableReplicas">-</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 元数据 -->
+    <div id="meta" class="card">
+        <div class="card-header">📋 元数据</div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-item"><span class="info-label">名称</span><span class="info-value" id="metaName">-</span></div>
+                <div class="info-item"><span class="info-label">命名空间</span><span class="info-value" id="metaNamespace">-</span></div>
+                <div class="info-item"><span class="info-label">UID</span><span class="info-value" id="metaUid">-</span></div>
+                <div class="info-item"><span class="info-label">创建时间</span><span class="info-value" id="metaCreation">-</span></div>
+                <div class="info-item"><span class="info-label">标签</span><div class="info-value" id="metaLabels">-</div></div>
+                <div class="info-item"><span class="info-label">注解</span><div class="info-value" id="metaAnnotations">-</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 运行时 -->
+    <div id="runtime" class="card">
+        <div class="card-header">⚙️ 运行时</div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-item"><span class="info-label">CPU</span><span class="info-value" id="runtimeCpu">-</span></div>
+                <div class="info-item"><span class="info-label">内存</span><span class="info-value" id="runtimeMemory">-</span></div>
+                <div class="info-item"><span class="info-label">镜像</span><span class="info-value" id="runtimeImage">-</span></div>
+                <div class="info-item"><span class="info-label">镜像拉取策略</span><span class="info-value" id="runtimePullPolicy">-</span></div>
+                <div class="info-item"><span class="info-label">命令</span><span class="info-value" id="runtimeCommand">-</span></div>
+                <div class="info-item"><span class="info-label">环境变量</span><div class="info-value" id="runtimeEnv">-</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 服务 -->
+    <div id="service" class="card">
+        <div class="card-header">🌐 服务 (Service)</div>
+        <div class="card-body"><div id="serviceList">加载中...</div></div>
+    </div>
+
+    <!-- 应用路由 -->
+    <div id="route" class="card">
+        <div class="card-header">🗺️ 应用路由 (Ingress)</div>
+        <div class="card-body"><div id="routeList">加载中...</div></div>
+    </div>
+
+    <!-- 容器组 -->
+    <div id="pods" class="card">
+        <div class="card-header">
+            <span>📦 容器组 (Pods)</span>
+            <button class="btn btn-outline" style="padding: 4px 12px;" onclick="loadDeploymentDetail()">刷新</button>
+        </div>
+        <div class="card-body"><div id="podList">加载中...</div></div>
+    </div>
+
+    <!-- 事件 -->
+    <div id="events" class="card">
+        <div class="card-header">📊 事件 (Events)</div>
+        <div class="card-body"><div id="eventList">加载中...</div></div>
+    </div>
+</div>
+
+<!-- 日志模态框 -->
+<div id="logModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>📋 Pod 日志</span>
+            <span class="modal-close" onclick="closeLogModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 12px;">
+                <select id="logPodSelect" style="padding: 6px; border-radius: 4px; border: 1px solid #d9d9d9;"></select>
+                <label style="margin-left: 16px;"><input type="checkbox" id="logPrevious"> 上次日志</label>
+                <button class="btn btn-outline" style="margin-left: 12px; padding: 4px 12px;" onclick="fetchLogs()">刷新</button>
+            </div>
+            <div id="logContainer" class="log-container">选择 Pod 查看日志</div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDeployment = null;
+let currentNamespace = 'cattle-system';
+let currentDeploymentName = 'ccccccccccccccccccccc-k8s-workers-5';
+
+function getUrlParams22() {
+    const params = new URLSearchParams(window.location.search);
+    currentNamespace = params.get('namespace') || 'cattle-system';
+    currentDeploymentName = params.get('deployment') || 'ccccccccccccccccccccc-k8s-workers-5';
+    document.getElementById('namespaceLink').innerHTML = `<a href="#">${currentNamespace}</a>`;
+    document.getElementById('deployName').innerText = currentDeploymentName;
+}
+
+
+// 在 pods_manager.html 的 getUrlParams 函数中
+function getUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    currentNamespace = params.get('namespace') || 'cattle-system';
+    currentDeploymentName = params.get('deployment') || 'ccccccccccccccccccccc-k8s-workers-5';
+    document.getElementById('namespaceLink').innerHTML = `<a href="#">${currentNamespace}</a>`;
+    document.getElementById('deployName').innerText = currentDeploymentName;
+    
+    // 如果有 deployment 参数，自动加载
+    if (params.get('deployment')) {
+        loadDeploymentDetail();
+    }
+}
+
+
+
+async function loadDeploymentDetail() {
+    document.getElementById('podList').innerHTML = '<div class="loader"><div class="spinner"></div>加载中...</div>';
+
+    const apiUrl = `/api/deployments/${currentNamespace}/${currentDeploymentName}`;
+    const podsUrl = `/api/pods?namespace=${currentNamespace}`;
+    const eventsUrl = `/api/events?namespace=${currentNamespace}`;
+    const servicesUrl = `/api/services?namespace=${currentNamespace}`;
+    const ingressesUrl = `/api/ingresses?namespace=${currentNamespace}`;
+
+    try {
+        const [deployRes, podsRes, eventsRes, servicesRes, ingressesRes] = await Promise.all([
+            fetch(apiUrl).catch(e => ({ ok: false })),
+            fetch(podsUrl).catch(e => ({ ok: false })),
+            fetch(eventsUrl).catch(e => ({ ok: false })),
+            fetch(servicesUrl).catch(e => ({ ok: false })),
+            fetch(ingressesUrl).catch(e => ({ ok: false }))
+        ]);
+
+        if (deployRes.ok) currentDeployment = await deployRes.json();
+
+        // 处理 Pods - 兼容两种格式
+        let allPods = [];
+        if (podsRes.ok) {
+            const podsData = await podsRes.json();
+            allPods = podsData.items || podsData;
+            // 如果是数组且不是 K8s 原始格式，转换为统一格式
+            if (Array.isArray(allPods) && allPods.length > 0 && !allPods[0].metadata) {
+                allPods = allPods.map(p => ({
+                    metadata: { name: p.name, namespace: p.namespace, creationTimestamp: new Date().toISOString() },
+                    spec: { nodeName: p.node },
+                    status: { phase: p.status, podIP: p.ip, containerStatuses: [{ restartCount: p.restarts || 0 }] }
+                }));
+            }
+        }
+
+        // 处理 Events
+        let events = [];
+        if (eventsRes.ok) {
+            const eventsData = await eventsRes.json();
+            events = eventsData.items || eventsData;
+        }
+
+        // 处理 Services
+        let services = [];
+        if (servicesRes.ok) {
+            const servicesData = await servicesRes.json();
+            services = servicesData.items || servicesData;
+        }
+
+        // 处理 Ingresses
+        let ingresses = [];
+        if (ingressesRes.ok) {
+            const ingressesData = await ingressesRes.json();
+            ingresses = ingressesData.items || ingressesData;
+        }
+
+        // 过滤 Deployment 相关事件
+        const deploymentEvents = events.filter(e => {
+            const involved = e.involvedObject || {};
+            return involved.kind === 'Deployment' && involved.name === currentDeploymentName;
+        });
+
+        renderMetadata(currentDeployment);
+        renderRuntime(currentDeployment);
+        renderServices(services);
+        renderIngresses(ingresses);
+        renderPods(allPods);  // 使用修复后的 renderPods
+        renderEvents(deploymentEvents);
+        renderScaleInfo(currentDeployment);
+
+    } catch(e) {
+        console.error(e);
+        document.getElementById('podList').innerHTML = '<div class="loader">加载失败: ' + e.message + '</div>';
+    }
+}
+
+
+
+
+
+
+
+async function loadDeploymentDetail1() {
+    document.getElementById('podList').innerHTML = '<div class="loader"><div class="spinner"></div>加载中...</div>';
+    
+    const apiUrl = `/api/deployments/${currentNamespace}/${currentDeploymentName}`;
+    const podsUrl = `/api/pods?namespace=${currentNamespace}`;
+    const eventsUrl = `/api/events?namespace=${currentNamespace}`;
+    const servicesUrl = `/api/services?namespace=${currentNamespace}`;
+    const ingressesUrl = `/api/ingresses?namespace=${currentNamespace}`;
+
+    try {
+        const [deployRes, podsRes, eventsRes, servicesRes, ingressesRes] = await Promise.all([
+            fetch(apiUrl), fetch(podsUrl), fetch(eventsUrl), fetch(servicesUrl), fetch(ingressesUrl)
+        ]);
+
+        if (deployRes.ok) currentDeployment = await deployRes.json();
+        
+        const allPodsData = podsRes.ok ? await podsRes.json() : { items: [] };
+        const allPods = allPodsData.items || allPodsData;
+        
+        const eventsData = eventsRes.ok ? await eventsRes.json() : { items: [] };
+        const events = eventsData.items || eventsData;
+        
+        const servicesData = servicesRes.ok ? await servicesRes.json() : { items: [] };
+        const services = servicesData.items || servicesData;
+        
+        const ingressesData = ingressesRes.ok ? await ingressesRes.json() : { items: [] };
+        const ingresses = ingressesData.items || ingressesData;
+
+        // 获取所有 Pod（不限制，展示该命名空间下所有 Pod）
+        const allPodsList = allPods;
+        
+        // 过滤 Deployment 相关事件
+        const deploymentEvents = events.filter(e => {
+            const involved = e.involvedObject || {};
+            return involved.kind === 'Deployment' && involved.name === currentDeploymentName;
+        });
+
+        renderMetadata(currentDeployment);
+        renderRuntime(currentDeployment);
+        renderServices(services);
+        renderIngresses(ingresses);
+        renderPods(allPodsList);
+        renderEvents(deploymentEvents);
+        renderScaleInfo(currentDeployment);
+
+    } catch(e) {
+        console.error(e);
+        document.getElementById('podList').innerHTML = '<div class="loader">加载失败: ' + e.message + '</div>';
+    }
+}
+
+function renderMetadata(deploy) {
+    if (!deploy) return;
+    const meta = deploy.metadata || {};
+    document.getElementById('metaName').innerText = meta.name || '-';
+    document.getElementById('metaNamespace').innerText = meta.namespace || '-';
+    document.getElementById('metaUid').innerText = meta.uid || '-';
+    document.getElementById('metaCreation').innerText = new Date(meta.creationTimestamp).toLocaleString() || '-';
+    
+    const labels = meta.labels || {};
+    document.getElementById('metaLabels').innerHTML = Object.entries(labels).map(([k,v]) => `<span class="label-tag"><span class="key">${k}</span>: ${v}</span>`).join('') || '-';
+    
+    const annotations = meta.annotations || {};
+    document.getElementById('metaAnnotations').innerHTML = Object.entries(annotations).slice(0,5).map(([k,v]) => `<span class="label-tag">${k}=${v.substring(0,50)}</span>`).join('') || '-';
+}
+
+function renderRuntime(deploy) {
+    if (!deploy) return;
+    const container = deploy.spec?.template?.spec?.containers?.[0] || {};
+    const resources = container.resources || {};
+    const cpuReq = resources.requests?.cpu || '-';
+    const cpuLim = resources.limits?.cpu || '-';
+    const memReq = resources.requests?.memory || '-';
+    const memLim = resources.limits?.memory || '-';
+    
+    document.getElementById('runtimeCpu').innerHTML = `${cpuReq} / ${cpuLim}`;
+    document.getElementById('runtimeMemory').innerHTML = `${memReq} / ${memLim}`;
+    document.getElementById('runtimeImage').innerText = container.image || '-';
+    document.getElementById('runtimePullPolicy').innerText = container.imagePullPolicy || 'Always';
+    document.getElementById('runtimeCommand').innerText = (container.command || []).join(' ') || '-';
+    document.getElementById('runtimeEnv').innerHTML = (container.env || []).slice(0,5).map(e => `<span class="label-tag">${e.name}=${e.value || '...'}</span>`).join('') || '-';
+}
+
+function renderServices(services) {
+    const container = document.getElementById('serviceList');
+    if (!services.length) {
+        container.innerHTML = '<div style="color:#8c8c8c;">暂无服务</div>';
+        return;
+    }
+    container.innerHTML = services.map(svc => {
+        const meta = svc.metadata || {};
+        const spec = svc.spec || {};
+        return `
+            <div style="margin-bottom: 12px; padding: 12px; background: #fafafa; border-radius: 4px;">
+                <div><strong>${meta.name}</strong> <span style="color:#8c8c8c;">(${spec.type || 'ClusterIP'})</span></div>
+                <div style="font-size:12px; color:#8c8c8c; margin-top:8px;">
+                    ClusterIP: ${spec.clusterIP || '-'} | 
+                    端口: ${(spec.ports || []).map(p => `${p.port}/${p.protocol}→${p.targetPort}`).join(', ')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderIngresses(ingresses) {
+    const container = document.getElementById('routeList');
+    if (!ingresses.length) {
+        container.innerHTML = '<div style="color:#8c8c8c;">暂无 Ingress</div>';
+        return;
+    }
+    container.innerHTML = ingresses.map(ing => {
+        const meta = ing.metadata || {};
+        const spec = ing.spec || {};
+        return `
+            <div style="margin-bottom: 12px; padding: 12px; background: #fafafa; border-radius: 4px;">
+                <div><strong>${meta.name}</strong></div>
+                ${(spec.rules || []).map(rule => `
+                    <div style="font-size:12px; margin-top:8px;">
+                        🚪 ${rule.host || '*'}
+                        ${(rule.http?.paths || []).map(p => ` → ${p.path || '/'} → ${p.backend?.service?.name}:${p.backend?.service?.port?.number}`).join('')}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }).join('');
+}
+
+
+function renderPods(pods) {
+    const container = document.getElementById('podList');
+    if (!pods || !pods.length) {
+        container.innerHTML = '<div style="color:#8c8c8c;">暂无 Pod</div>';
+        return;
+    }
+    
+    container.innerHTML = `
+        <table class="pod-table">
+            <thead>
+                <tr><th>名称</th><th>节点</th><th>IP</th><th>状态</th><th>重启次数</th><th>年龄</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+                ${pods.map(pod => {
+                    // 兼容两种数据格式
+                    // 格式1: K8s 原始格式 (metadata.name, spec.nodeName, status.phase)
+                    // 格式2: 简化格式 (name, node, status, ip, restarts)
+                    
+                    let name = pod.metadata?.name || pod.name || '-';
+                    let namespace = pod.metadata?.namespace || pod.namespace || '-';
+                    let nodeName = pod.spec?.nodeName || pod.node || '-';
+                    let podIP = pod.status?.podIP || pod.ip || '-';
+                    let phase = pod.status?.phase || pod.status || 'Unknown';
+                    let restartCount = 0;
+                    
+                    // 获取重启次数
+                    if (pod.status?.containerStatuses?.[0]?.restartCount !== undefined) {
+                        restartCount = pod.status.containerStatuses[0].restartCount;
+                    } else if (pod.restarts !== undefined) {
+                        restartCount = pod.restarts;
+                    }
+                    
+                    // 计算年龄
+                    let age = '-';
+                    if (pod.metadata?.creationTimestamp) {
+                        const created = new Date(pod.metadata.creationTimestamp);
+                        age = Math.floor((Date.now() - created) / 1000 / 60) + 'm';
+                    } else if (pod.age) {
+                        age = pod.age;
+                    }
+                    
+                    // 确定状态样式
+                    const statusClass = phase === 'Running' ? 'status-Running' : 
+                                      (phase === 'Pending' ? 'status-Pending' : 
+                                      (phase === 'Failed' ? 'status-Failed' : 'status-Succeeded'));
+                    
+                    return `
+                        <tr>
+                            <td><span class="pod-name" onclick="showPodLogs('${namespace}', '${name}')">${name}</span></td>
+                            <td>${nodeName}</td>
+                            <td>${podIP}</td>
+                            <td><span class="status-badge ${statusClass}">${phase}</span></td>
+                            <td>${restartCount}</td>
+                            <td>${age}</td>
+                            <td><button class="btn btn-outline" style="padding:2px 12px;" onclick="showPodLogs('${namespace}', '${name}')">日志</button></td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+
+
+function renderPods1(pods) {
+    const container = document.getElementById('podList');
+    if (!pods.length) {
+        container.innerHTML = '<div style="color:#8c8c8c;">暂无 Pod</div>';
+        return;
+    }
+    container.innerHTML = `
+        <table class="pod-table">
+            <thead><tr><th>名称</th><th>节点</th><th>IP</th><th>状态</th><th>重启次数</th><th>年龄</th><th>操作</th></tr></thead>
+            <tbody>
+                ${pods.map(pod => {
+                    const meta = pod.metadata || {};
+                    const spec = pod.spec || {};
+                    const status = pod.status || {};
+                    const phase = status.phase || 'Unknown';
+                    const restartCount = status.containerStatuses?.[0]?.restartCount || 0;
+                    const age = meta.creationTimestamp ? Math.floor((Date.now() - new Date(meta.creationTimestamp)) / 1000 / 60) + 'm' : '-';
+                    return `
+                        <tr>
+                            <td><span class="pod-name" onclick="showPodLogs('${meta.namespace}', '${meta.name}')">${meta.name}</span></td>
+                            <td>${spec.nodeName || '-'}</td>
+                            <td>${status.podIP || '-'}</td>
+                            <td><span class="status-badge status-${phase}">${phase}</span></td>
+                            <td>${restartCount}</td>
+                            <td>${age}</td>
+                            <td><button class="btn btn-outline" style="padding:2px 12px;" onclick="showPodLogs('${meta.namespace}', '${meta.name}')">日志</button></td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function renderEvents(events) {
+    const container = document.getElementById('eventList');
+    if (!events.length) {
+        container.innerHTML = '<div style="color:#8c8c8c;">暂无事件</div>';
+        return;
+    }
+    container.innerHTML = `
+        <table class="pod-table">
+            <thead><tr><th>类型</th><th>原因</th><th>消息</th><th>次数</th><th>时间</th></tr></thead>
+            <tbody>
+                ${events.slice(0,20).map(e => `
+                    <tr>
+                        <td><span class="status-badge ${e.type === 'Normal' ? 'status-Running' : 'status-Failed'}">${e.type || '-'}</span></td>
+                        <td>${e.reason || '-'}</td>
+                        <td style="max-width:400px; overflow:hidden; text-overflow:ellipsis;">${e.message || '-'}</td>
+                        <td>${e.count || 1}</td>
+                        <td>${new Date(e.lastTimestamp).toLocaleString()}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function renderScaleInfo(deploy) {
+    if (!deploy) return;
+    document.getElementById('desiredReplicas').innerText = deploy.spec?.replicas || 0;
+    document.getElementById('currentReplicas').innerText = deploy.status?.replicas || 0;
+    document.getElementById('readyReplicas').innerText = deploy.status?.readyReplicas || 0;
+    document.getElementById('availableReplicas').innerText = deploy.status?.availableReplicas || 0;
+}
+
+function editYaml() { alert("编辑 YAML\nkubectl edit deployment -n " + currentNamespace + " " + currentDeploymentName); }
+function previewYaml() { alert("查看 YAML\nkubectl get deployment -n " + currentNamespace + " " + currentDeploymentName + " -o yaml"); }
+function scaleDeployment() { 
+    let replicas = prompt("输入副本数:", document.getElementById('desiredReplicas').innerText);
+    if(replicas) alert("kubectl scale deployment -n " + currentNamespace + " " + currentDeploymentName + " --replicas=" + replicas);
+}
+function restartDeployment() { if(confirm("确定重启 Deployment？")) alert("kubectl rollout restart deployment -n " + currentNamespace + " " + currentDeploymentName); }
+function deleteDeployment() { if(confirm("确定删除 Deployment？")) alert("kubectl delete deployment -n " + currentNamespace + " " + currentDeploymentName); }
+function showLogs() { document.getElementById('logModal').style.display = 'flex'; loadPodListForLogs(); }
+
+
+async function loadPodListForLogs() {
+    const res = await fetch(`/api/pods?namespace=${currentNamespace}`);
+    const data = await res.json();
+    // 兼容两种格式
+    let pods = data.items || data;
+    if (Array.isArray(pods) && pods.length > 0 && !pods[0].metadata) {
+        pods = pods.map(p => ({ metadata: { name: p.name, namespace: p.namespace } }));
+    }
+    const select = document.getElementById('logPodSelect');
+    select.innerHTML = pods.map(p => `<option value="${p.metadata?.name || p.name}">${p.metadata?.name || p.name}</option>`).join('');
+    if(select.options.length) fetchLogs();
+}
+
+
+
+async function loadPodListForLogs1() {
+    const res = await fetch(`/api/pods?namespace=${currentNamespace}`);
+    const data = await res.json();
+    const pods = data.items || data;
+    const select = document.getElementById('logPodSelect');
+    select.innerHTML = pods.map(p => `<option value="${p.metadata?.name}">${p.metadata?.name}</option>`).join('');
+    if(select.options.length) fetchLogs();
+}
+
+
+async function showPodLogs(namespace, podName) {
+    currentNamespace = namespace;
+    document.getElementById('logModal').style.display = 'flex';
+    const select = document.getElementById('logPodSelect');
+    select.innerHTML = `<option value="${podName}">${podName}</option>`;
+    await fetchLogs(podName);
+}
+
+async function fetchLogs() {
+    const pod = document.getElementById('logPodSelect').value;
+    if(!pod) return;
+    const previous = document.getElementById('logPrevious').checked;
+    const res = await fetch(`/api/pods/${currentNamespace}/${pod}/logs?previous=${previous}`);
+    const logs = await res.text();
+    document.getElementById('logContainer').innerHTML = logs || '(无日志)';
+}
+
+
+async function showPodLogs1(namespace, podName) {
+    currentNamespace = namespace;
+    document.getElementById('logModal').style.display = 'flex';
+    const select = document.getElementById('logPodSelect');
+    select.innerHTML = `<option value="${podName}">${podName}</option>`;
+    await fetchLogs(podName);
+}
+
+async function fetchLogs1() {
+    const pod = document.getElementById('logPodSelect').value;
+    if(!pod) return;
+    const previous = document.getElementById('logPrevious').checked;
+    const res = await fetch(`/api/pods/${currentNamespace}/${pod}/logs?previous=${previous}`);
+    const logs = await res.text();
+    document.getElementById('logContainer').innerHTML = logs || '(无日志)';
+}
+
+function closeLogModal() { document.getElementById('logModal').style.display = 'none'; }
+
+getUrlParams();
+loadDeploymentDetail();
+setInterval(loadDeploymentDetail, 30000);
+</script>
+</body>
+</html>

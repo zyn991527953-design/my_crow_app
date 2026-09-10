@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>GitLab 管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 20px; }
+        .container { max-width: 100%; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .stat-number { font-size: 28px; font-weight: 700; color: #1f2937; }
+        .stat-label { color: #6b7280; font-size: 14px; margin-top: 4px; }
+        .content-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .btn { padding: 8px 16px; border-radius: 6px; cursor: pointer; border: none; }
+        .btn-primary { background: #409eff; color: white; }
+        .btn-danger { background: #f56c6c; color: white; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; }
+        tr:hover { background: #f5f7fa; }
+        .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .status-public { background: #e8f5e9; color: #2e7d32; }
+        .status-private { background: #fff3e0; color: #e65100; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; border-radius: 8px; width: 500px; max-width: 90%; padding: 20px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 500; }
+        .form-control { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; }
+        .file-tree { background: #f8f9fa; border-radius: 8px; padding: 12px; max-height: 400px; overflow-y: auto; }
+        .file-item { padding: 6px 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
+        .file-item:hover { background: #e8f4ff; }
+        .file-item.dir { color: #409eff; font-weight: 500; }
+        .file-preview { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; white-space: pre-wrap; max-height: 400px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🦊 GitLab 管理平台 - 虚拟环境加载较慢</h1>
+        <button class="btn btn-primary" onclick="showCreateProjectModal()">➕ 新建项目</button>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-number" id="projectCount">-</div><div class="stat-label">项目总数</div></div>
+        <div class="stat-card"><div class="stat-number" id="userCount">-</div><div class="stat-label">用户总数</div></div>
+        <div class="stat-card"><div class="stat-number" id="currentUser">-</div><div class="stat-label">当前用户</div></div>
+    </div>
+
+    <!-- 项目列表 -->
+    <div class="content-section">
+        <div class="section-header">
+            <h2>📁 项目列表</h2>
+            <button class="btn btn-primary btn-sm" onclick="loadProjects()">🔄 刷新</button>
+        </div>
+        <div class="table-container" id="projectsTable"></div>
+    </div>
+
+    <!-- 文件浏览器 -->
+    <div class="content-section" id="fileBrowser" style="display: none;">
+        <div class="section-header">
+            <h2>📂 文件浏览器 <span id="currentProjectName"></span></h2>
+            <button class="btn btn-outline btn-sm" onclick="hideFileBrowser()">返回项目列表</button>
+        </div>
+        <div id="fileTree" class="file-tree"></div>
+        <div id="fileContent" class="file-preview" style="display: none;"></div>
+    </div>
+</div>
+
+<!-- 新建项目模态框 -->
+<div id="createProjectModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>新建 GitLab 项目</h3>
+        <div class="form-group">
+            <label>项目名称</label>
+            <input type="text" id="projectName" class="form-control" placeholder="例如: my-project">
+        </div>
+        <div class="form-group">
+            <label>项目描述</label>
+            <textarea id="projectDescription" class="form-control" rows="3" placeholder="项目描述..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>可见性</label>
+            <select id="projectVisibility" class="form-control">
+                <option value="private">私有</option>
+                <option value="public">公开</option>
+                <option value="internal">内部</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button class="btn" onclick="closeCreateProjectModal()">取消</button>
+            <button class="btn btn-primary" onclick="createProject()">创建</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentProjectId = null;
+
+// 加载项目列表
+async function loadProjects() {
+    try {
+        const response = await fetch('/api/gitlab/projects');
+        const projects = await response.json();
+        
+        document.getElementById('projectCount').innerText = projects.length;
+        
+        const tableHtml = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>项目名称</th>
+                        <th>描述</th>
+                        <th>可见性</th>
+                        <th>最后活动</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${projects.map(p => `
+                        <tr>
+                            <td>${p.id}</td>
+                            <td><strong>${p.name}</strong><br><small style="color:#999;">${p.path_with_namespace}</small></td>
+                            <td>${p.description || '-'}</td>
+                            <td><span class="status-badge status-${p.visibility}">${p.visibility}</span></td>
+                            <td>${new Date(p.last_activity_at).toLocaleDateString()}</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="browseFiles(${p.id}, '${p.name}')">📂 浏览文件</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        document.getElementById('projectsTable').innerHTML = tableHtml;
+    } catch(e) {
+        console.error('加载项目失败:', e);
+        document.getElementById('projectsTable').innerHTML = '<div class="empty-state">加载失败，请检查 GitLab 连接</div>';
+    }
+}
+
+// 加载用户信息
+async function loadUserInfo() {
+    try {
+        const response = await fetch('/api/gitlab/user');
+        const user = await response.json();
+        document.getElementById('currentUser').innerText = user.username;
+        
+        const usersResponse = await fetch('/api/gitlab/users');
+        const users = await usersResponse.json();
+        document.getElementById('userCount').innerText = users.length;
+    } catch(e) {
+        console.error('加载用户信息失败:', e);
+    }
+}
+
+// 浏览文件
+async function browseFiles1(projectId, projectName) {
+    currentProjectId = projectId;
+    document.getElementById('currentProjectName').innerHTML = `: ${projectName}`;
+    document.getElementById('projectsTable').closest('.content-section').style.display = 'none';
+    document.getElementById('fileBrowser').style.display = 'block';
+    await loadFileTree('/');
+}
+
+
+async function browseFiles(projectId, projectName) {
+    currentProjectId = projectId;
+    document.getElementById('currentProjectName').innerHTML = `: ${projectName}`;
+    document.getElementById('projectsTable').closest('.content-section').style.display = 'none';
+    document.getElementById('fileBrowser').style.display = 'block';
+
+    // 先获取项目信息，确定默认分支
+    try {
+        const projectRes = await fetch(`/api/gitlab/proxy/projects/${projectId}`);
+        const project = await projectRes.json();
+        defaultBranch = project.default_branch || 'master';
+    } catch(e) {
+        defaultBranch = 'master';
+    }
+
+    await loadFileTree('/');
+}
+
+async function loadFileTree(path) {
+    const treeDiv = document.getElementById('fileTree');
+    const contentDiv = document.getElementById('fileContent');
+    contentDiv.style.display = 'none';
+    treeDiv.innerHTML = '<div class="loader">加载中...</div>';
+    
+    try {
+        // 直接调用 GitLab API（通过后端代理，但用 /api/gitlab/proxy 路径）
+        let url = `/api/gitlab/proxy/projects/${currentProjectId}/repository/tree`;
+        if (path && path !== '/') {
+            url += `?path=${encodeURIComponent(path)}&ref=master`;
+        } else {
+            url += '?ref=master';
+        }
+        
+        console.log('请求 URL:', url);
+        
+        const response = await fetch(url);
+        const files = await response.json();
+        
+        if (files.error || files.message) {
+            treeDiv.innerHTML = `<div class="empty-state">错误: ${files.message || files.error}</div>`;
+            return;
+        }
+        
+        if (!files.length) {
+            treeDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">目录为空</div>';
+            return;
+        }
+        
+        treeDiv.innerHTML = `
+            <div class="file-item" onclick="loadFileTree('/')">📁 .. (返回上级)</div>
+            ${files.map(file => `
+                <div class="file-item ${file.type === 'tree' ? 'dir' : 'file'}" onclick="${file.type === 'tree' ? `loadFileTree('${file.path}')` : `viewFile('${file.path}')`}">
+                    ${file.type === 'tree' ? '📁' : '📄'} ${file.name}
+                </div>
+            `).join('')}
+        `;
+    } catch(e) {
+        console.error('加载失败:', e);
+        treeDiv.innerHTML = `<div class="empty-state">加载失败: ${e.message}</div>`;
+    }
+}
+
+
+
+
+// 加载文件树
+async function loadFileTree1(path) {
+    const treeDiv = document.getElementById('fileTree');
+    const contentDiv = document.getElementById('fileContent');
+    contentDiv.style.display = 'none';
+    treeDiv.innerHTML = '<div class="loader">加载中...</div>';
+    
+    try {
+        let url = `/api/gitlab/repository/${currentProjectId}/tree`;
+        if (path && path !== '/') {
+            url += `?path=${encodeURIComponent(path)}`;
+        }
+        const response = await fetch(url);
+        const files = await response.json();
+        
+        if (!files.length) {
+            treeDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">目录为空</div>';
+            return;
+        }
+        
+        treeDiv.innerHTML = `
+            <div class="file-item" onclick="loadFileTree('/')">📁 .. (返回上级)</div>
+            ${files.map(file => `
+                <div class="file-item ${file.type === 'tree' ? 'dir' : 'file'}" onclick="${file.type === 'tree' ? `loadFileTree('${file.path}')` : `viewFile('${file.path}')`}">
+                    ${file.type === 'tree' ? '📁' : '📄'} ${file.name}
+                </div>
+            `).join('')}
+        `;
+    } catch(e) {
+        treeDiv.innerHTML = '<div class="empty-state">加载失败</div>';
+    }
+}
+
+// 查看文件内容
+async function viewFile(filePath) {
+    const contentDiv = document.getElementById('fileContent');
+    contentDiv.innerHTML = '加载中...';
+    contentDiv.style.display = 'block';
+    
+    try {
+        const response = await fetch(`/api/gitlab/file/${currentProjectId}?file_path=${encodeURIComponent(filePath)}&ref=main`);
+        const data = await response.json();
+        
+        // 解码 base64 内容
+        if (data.content) {
+            const content = atob(data.content);
+            contentDiv.innerHTML = `<strong>📄 ${filePath}</strong><hr>${escapeHtml(content)}`;
+        } else {
+            contentDiv.innerHTML = '无法显示文件内容';
+        }
+    } catch(e) {
+        contentDiv.innerHTML = '读取文件失败';
+    }
+}
+
+function hideFileBrowser() {
+    document.getElementById('projectsTable').closest('.content-section').style.display = 'block';
+    document.getElementById('fileBrowser').style.display = 'none';
+    currentProjectId = null;
+}
+
+// 创建项目
+function showCreateProjectModal() {
+    document.getElementById('createProjectModal').style.display = 'flex';
+}
+
+function closeCreateProjectModal() {
+    document.getElementById('createProjectModal').style.display = 'none';
+}
+
+async function createProject() {
+    const name = document.getElementById('projectName').value;
+    const description = document.getElementById('projectDescription').value;
+    const visibility = document.getElementById('projectVisibility').value;
+    
+    if (!name) {
+        alert('请输入项目名称');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/gitlab/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                description: description,
+                visibility: visibility
+            })
+        });
+        const result = await response.json();
+        if (result.id) {
+            alert('✅ 项目创建成功');
+            closeCreateProjectModal();
+            loadProjects();
+        } else {
+            alert('❌ 创建失败: ' + JSON.stringify(result));
+        }
+    } catch(e) {
+        alert('❌ 创建失败: ' + e.message);
+    }
+}
+
+// 删除项目
+async function deleteProject(projectId) {
+    if (!confirm('确定要删除该项目吗？此操作不可撤销！')) return;
+    
+    try {
+        const response = await fetch(`/api/gitlab/projects/${projectId}`, { method: 'DELETE' });
+        if (response.ok) {
+            alert('✅ 项目已删除');
+            loadProjects();
+        } else {
+            alert('❌ 删除失败');
+        }
+    } catch(e) {
+        alert('❌ 删除失败: ' + e.message);
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+// 初始化
+loadProjects();
+loadUserInfo();
+setInterval(() => {
+    if (document.querySelector('.page.active')?.id === 'gitlab_manager') {
+        loadProjects();
+    }
+}, 30000);
+</script>
+</body>
+</html>

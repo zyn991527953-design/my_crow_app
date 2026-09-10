@@ -1,0 +1,56 @@
+# 模型文件（最大）
+models/
+*.safetensors
+*.bin
+*.onnx
+*.h5
+*.pt
+*.gguf
+
+# Git 对象
+.git/
+
+# 数据
+chain_data/
+data/
+*.db
+*.sqlite
+
+# 大目录
+sdc-integration-tests/
+docs/
+memory/
+allure-results/
+allure-report/
+node_modules/
+__pycache__/
+venv/
+.venv/
+tmp/
+
+# 大文件
+*.deb
+*.tar
+*.zip
+*.gz
+*.o
+*.out
+crow-k8s-api
+kline_chart
+kubectl
+webshell/webshell
+
+# 备份文件
+*.bak
+*.bak_*
+*_bak2024*
+*_bak2025*
+*_bak2026*
+*_bak
+*_pp
+*.tmp
+*.old
+
+# 日志
+*.log
+.DS_Store

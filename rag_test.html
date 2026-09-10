@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>RAG 智能运维助手</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; padding: 20px; margin: 0; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .header h2 { color: #1a1a2e; margin: 0; display: flex; align-items: center; gap: 10px; }
+        .status-badge { font-size: 13px; padding: 4px 12px; border-radius: 20px; background: #e8f5e9; color: #2e7d32; }
+        .status-badge.init { background: #fff3e0; color: #e65100; }
+        .status-badge.error { background: #ffebee; color: #c62828; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); border: 1px solid #e4e7ed; }
+        .card-title { font-size: 16px; font-weight: 600; color: #303133; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        
+        .btn { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .btn-success { background: #67c23a; color: white; }
+        .btn-primary { background: #409eff; color: white; }
+        .btn-danger { background: #f56c6c; color: white; }
+        .btn-warning { background: #e6a23c; color: white; }
+        .btn-outline { background: white; border: 1px solid #dcdfe6; color: #606266; }
+        .btn-outline:hover { border-color: #409eff; color: #409eff; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        
+        .input-group { display: flex; gap: 10px; margin-bottom: 12px; }
+        .input-group input, .input-group textarea, .input-group select { flex: 1; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; font-family: inherit; }
+        .input-group input:focus, .input-group textarea:focus { outline: none; border-color: #409eff; }
+        .input-group textarea { min-height: 60px; resize: vertical; }
+        
+        .result-box { background: #f5f7fa; padding: 16px; border-radius: 8px; min-height: 150px; border: 1px solid #e4e7ed; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; font-family: 'Consolas', 'Monaco', monospace; max-height: 400px; overflow-y: auto; }
+        .result-box.empty { color: #909399; display: flex; align-items: center; justify-content: center; }
+        
+        .knowledge-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .knowledge-table th { text-align: left; padding: 10px 12px; background: #f5f7fa; color: #606266; font-weight: 600; border-bottom: 2px solid #e4e7ed; position: sticky; top: 0; z-index: 1; }
+        .knowledge-table td { padding: 10px 12px; border-bottom: 1px solid #e4e7ed; color: #303133; vertical-align: top; }
+        .knowledge-table tr:hover { background: #f5f7fa; }
+        .knowledge-table .text-muted { color: #909399; font-size: 12px; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #e4e7ed; color: #606266; margin: 2px 4px 2px 0; }
+        .tag-success { background: #e8f5e9; color: #2e7d32; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal-box { background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .modal-header h3 { margin: 0; color: #303133; }
+        .modal-close { cursor: pointer; font-size: 24px; color: #909399; background: none; border: none; }
+        .modal-close:hover { color: #f56c6c; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-weight: 500; color: #606266; margin-bottom: 4px; font-size: 13px; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; font-family: inherit; }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #409eff; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e4e7ed; }
+        
+        .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid #e4e7ed; }
+        .tab-btn { padding: 8px 20px; border: none; background: none; cursor: pointer; font-size: 14px; color: #909399; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+        .tab-btn:hover { color: #409eff; }
+        .tab-btn.active { color: #409eff; border-bottom-color: #409eff; font-weight: 600; }
+        
+        .knowledge-stats { display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+        .stat-item { font-size: 13px; color: #606266; }
+        .stat-item strong { color: #303133; }
+        
+        .empty-state { text-align: center; padding: 40px 0; color: #909399; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #e4e7ed; border-top-color: #409eff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .flex { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .mt-10 { margin-top: 10px; }
+        .mb-10 { margin-bottom: 10px; }
+        .text-success { color: #67c23a; }
+        .text-danger { color: #f56c6c; }
+        .text-warning { color: #e6a23c; }
+        .text-muted { color: #909399; font-size: 12px; }
+        
+        .table-scroll { max-height: 500px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>🧠 RAG 智能运维助手</h2>
+        <div id="statusBadge" class="status-badge init">⏳ 检查中...</div>
+    </div>
+    
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('chat')">💬 智能问答</button>
+        <button class="tab-btn" onclick="switchTab('knowledge')">📚 知识库管理</button>
+    </div>
+    
+    <!-- Tab 1: 智能问答 -->
+    <div id="tabChat" class="card">
+        <div class="flex-between mb-10">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-success" onclick="initRAG()" id="initBtn">📥 初始化知识库</button>
+                <button class="btn btn-primary" onclick="checkRAG()">📊 刷新状态</button>
+            </div>
+            <span id="knowledgeCount" style="font-size:13px;color:#909399;">共 0 条知识</span>
+        </div>
+        <div class="input-group">
+            <input type="text" id="ragQuery" placeholder="输入 K8s 运维问题，例如: Pod NotReady 怎么排查？">
+            <button class="btn btn-primary" onclick="askRAG()" id="askBtn">🚀 提问</button>
+        </div>
+        <div id="ragResult" class="result-box empty">💡 输入问题后点击"提问"开始查询</div>
+    </div>
+    
+    <!-- Tab 2: 知识库管理 -->
+    <div id="tabKnowledge" class="card" style="display:none;">
+        <div class="flex-between mb-10">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-success" onclick="openAddKnowledge()">➕ 添加知识</button>
+                <button class="btn btn-warning" onclick="refreshKnowledgeList()">🔄 刷新列表</button>
+                <button class="btn btn-danger btn-sm" onclick="clearAllKnowledge()">🗑️ 清空全部</button>
+            </div>
+            <span id="knowledgeCount2" style="font-size:13px;color:#909399;">共 0 条知识</span>
+        </div>
+        <div id="knowledgeList" class="result-box empty">📭 暂无知识，点击"添加知识"或"初始化知识库"导入</div>
+    </div>
+</div>
+
+<!-- 添加知识弹窗 -->
+<div id="addModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>📝 添加知识</h3>
+            <button class="modal-close" onclick="closeAddKnowledge()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>知识内容 <span style="color:#f56c6c;">*</span></label>
+            <textarea id="addText" placeholder="输入知识内容，例如：Pod NotReady 排查步骤..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>标签（逗号分隔）</label>
+            <input id="addTags" placeholder="例如: pod, troubleshooting, notready">
+        </div>
+        <div class="form-group">
+            <label>来源</label>
+            <input id="addSource" placeholder="例如: 官方文档, 经验总结" value="user">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeAddKnowledge()">取消</button>
+            <button class="btn btn-success" onclick="submitAddKnowledge()" id="addSubmitBtn">✅ 添加</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let isInitialized = false;
+let isInitializing = false;
+
+// ========== API 基础地址 ==========
+const API_BASE = window.location.origin;
+
+// ========== 切换 Tab ==========
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        if (b.textContent.includes(tab === 'chat' ? '智能问答' : '知识库管理')) {
+            b.classList.add('active');
+        }
+    });
+    document.getElementById('tabChat').style.display = tab === 'chat' ? 'block' : 'none';
+    document.getElementById('tabKnowledge').style.display = tab === 'knowledge' ? 'block' : 'none';
+    if (tab === 'knowledge') {
+        refreshKnowledgeList();
+    }
+}
+
+// ========== 状态检查 ==========
+async function checkRAG() {
+    const statusEl = document.getElementById('statusBadge');
+    const countEl = document.getElementById('knowledgeCount');
+    statusEl.textContent = '⏳ 检查中...';
+    statusEl.className = 'status-badge init';
+    try {
+        const r = await fetch(API_BASE + '/api/rag/status');
+        const d = await r.json();
+        if (d.status === 'ready') {
+            statusEl.textContent = '✅ 就绪';
+            statusEl.className = 'status-badge';
+            isInitialized = true;
+            countEl.textContent = '共 ' + d.knowledge_count + ' 条知识';
+            document.getElementById('knowledgeCount2').textContent = '共 ' + d.knowledge_count + ' 条知识';
+        } else {
+            statusEl.textContent = '⚠️ ' + d.status;
+            statusEl.className = 'status-badge init';
+            isInitialized = false;
+        }
+        return d;
+    } catch(e) {
+        statusEl.textContent = '❌ 连接失败: ' + e.message;
+        statusEl.className = 'status-badge error';
+        return null;
+    }
+}
+
+// ========== 初始化知识库（防止重复） ==========
+async function initRAG() {
+    if (isInitializing) {
+        alert('⏳ 正在初始化中，请稍候...');
+        return;
+    }
+    
+    const countText = document.getElementById('knowledgeCount').textContent;
+    const countMatch = countText.match(/\d+/);
+    const currentCount = countMatch ? parseInt(countMatch[0]) : 0;
+    
+    if (isInitialized && currentCount > 0) {
+        if (!confirm('知识库已初始化（' + countText + '），确定要重新初始化吗？\n⚠️ 这将清空现有知识并重新导入预置知识！')) {
+            return;
+        }
+    }
+    
+    const statusEl = document.getElementById('statusBadge');
+    const resultEl = document.getElementById('ragResult');
+    const initBtn = document.getElementById('initBtn');
+    isInitializing = true;
+    initBtn.disabled = true;
+    initBtn.textContent = '⏳ 初始化中...';
+    statusEl.textContent = '⏳ 初始化中...';
+    statusEl.className = 'status-badge init';
+    resultEl.textContent = '🔄 正在初始化知识库，请稍候...';
+    
+    try {
+        const r = await fetch(API_BASE + '/api/rag/init', {method: 'POST'});
+        const d = await r.json();
+        resultEl.textContent = JSON.stringify(d, null, 2);
+        if (d.success) {
+            isInitialized = true;
+            statusEl.textContent = '✅ 就绪';
+            statusEl.className = 'status-badge';
+            document.getElementById('knowledgeCount').textContent = '共 ' + d.count + ' 条知识';
+            document.getElementById('knowledgeCount2').textContent = '共 ' + d.count + ' 条知识';
+            alert('✅ 初始化成功！共 ' + d.count + ' 条知识');
+            // 自动刷新知识列表
+            if (document.getElementById('tabKnowledge').style.display !== 'none') {
+                refreshKnowledgeList();
+            }
+        } else {
+            statusEl.textContent = '❌ 初始化失败';
+            statusEl.className = 'status-badge error';
+            alert('❌ 初始化失败: ' + d.message);
+        }
+    } catch(e) {
+        statusEl.textContent = '❌ 请求失败: ' + e.message;
+        statusEl.className = 'status-badge error';
+        resultEl.textContent = '错误: ' + e.message;
+        alert('❌ 请求失败: ' + e.message);
+    } finally {
+        isInitializing = false;
+        initBtn.disabled = false;
+        initBtn.textContent = '📥 初始化知识库';
+    }
+}
+
+// ========== 提问 ==========
+async function askRAG() {
+    const input = document.getElementById('ragQuery');
+    const resultEl = document.getElementById('ragResult');
+    const askBtn = document.getElementById('askBtn');
+    const q = input.value.trim();
+    if (!q) { alert('请输入问题'); return; }
+    resultEl.textContent = '🤔 思考中...';
+    resultEl.className = 'result-box';
+    askBtn.disabled = true;
+    askBtn.textContent = '⏳ 思考中...';
+    try {
+        const r = await fetch(API_BASE + '/api/rag/ask', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({query: q, top_k: 3})
+        });
+        const d = await r.json();
+        if (d.success) {
+            let output = '📝 回答:\n' + d.answer + '\n\n';
+            if (d.sources && d.sources.length > 0) {
+                output += '📖 参考来源:\n';
+                d.sources.forEach((s, i) => {
+                    const text = s.text.length > 100 ? s.text.substring(0, 100) + '...' : s.text;
+                    output += `  ${i+1}. ${text}\n`;
+                });
+            }
+            if (d.duration_ms) {
+                output += `\n⏱️ 耗时: ${d.duration_ms}ms`;
+            }
+            resultEl.textContent = output;
+        } else {
+            resultEl.textContent = '❌ 错误: ' + (d.message || '未知错误');
+        }
+    } catch(e) {
+        resultEl.textContent = '❌ 请求失败: ' + e.message;
+    } finally {
+        askBtn.disabled = false;
+        askBtn.textContent = '🚀 提问';
+    }
+}
+
+// ========== 知识库管理 ==========
+async function refreshKnowledgeList() {
+    const container = document.getElementById('knowledgeList');
+    container.textContent = '⏳ 加载中...';
+    container.className = 'result-box';
+    try {
+        const r = await fetch(API_BASE + '/api/rag/list');
+        const d = await r.json();
+        if (d.success && d.data && d.data.length > 0) {
+            let html = '<div class="table-scroll"><table class="knowledge-table"><thead><tr><th style="width:50px;">#</th><th>内容</th><th>标签</th><th style="width:80px;">操作</th></tr></thead><tbody>';
+            d.data.forEach((item, i) => {
+                const text = item.text.length > 80 ? item.text.substring(0, 80) + '...' : item.text;
+                let tags = [];
+                if (item.metadata && item.metadata.tags) {
+                    tags = item.metadata.tags.split(',').map(t => t.trim());
+                }
+                html += `<tr>
+                    <td>${i+1}</td>
+                    <td><span title="${escapeHtml(item.text)}">${escapeHtml(text)}</span></td>
+                    <td>${tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteKnowledge('${item.id}')">删除</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+            container.className = 'result-box';
+            document.getElementById('knowledgeCount2').textContent = '共 ' + d.total + ' 条知识';
+        } else if (d.success && d.total > 0 && d.data.length === 0) {
+            container.innerHTML = `<div class="empty-state">
+                <div class="icon">📚</div>
+                <div>知识库共有 ${d.total} 条知识</div>
+                <div style="margin-top:8px;font-size:13px;color:#909399;">💡 知识列表加载中，请点击"刷新列表"重试</div>
+            </div>`;
+            container.className = 'result-box';
+        } else {
+            container.innerHTML = `<div class="empty-state">
+                <div class="icon">📚</div>
+                <div>当前知识库：${document.getElementById('knowledgeCount').textContent}</div>
+                <div style="margin-top:8px;font-size:13px;color:#909399;">💡 使用"添加知识"按钮手动添加，或点击"初始化知识库"导入预置知识</div>
+            </div>`;
+            container.className = 'result-box';
+        }
+    } catch(e) {
+        container.innerHTML = `<div class="empty-state">
+            <div class="icon">⚠️</div>
+            <div>加载失败: ${e.message}</div>
+            <div style="margin-top:8px;font-size:13px;color:#909399;">点击"刷新列表"重试</div>
+        </div>`;
+        container.className = 'result-box';
+    }
+}
+
+// ========== 添加知识 ==========
+function openAddKnowledge() {
+    document.getElementById('addText').value = '';
+    document.getElementById('addTags').value = '';
+    document.getElementById('addSource').value = 'user';
+    document.getElementById('addModal').classList.add('show');
+}
+
+function closeAddKnowledge() {
+    document.getElementById('addModal').classList.remove('show');
+}
+
+async function submitAddKnowledge() {
+    const text = document.getElementById('addText').value.trim();
+    const tags = document.getElementById('addTags').value.trim();
+    const source = document.getElementById('addSource').value.trim();
+    
+    if (!text) {
+        alert('请输入知识内容');
+        return;
+    }
+    
+    const btn = document.getElementById('addSubmitBtn');
+    const originalText = btn.textContent;
+    btn.textContent = '⏳ 添加中...';
+    btn.disabled = true;
+    
+    try {
+        const metadata = {};
+        if (tags) metadata.tags = tags;
+        if (source) metadata.source = source;
+        
+        const r = await fetch(API_BASE + '/api/rag/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text, metadata})
+        });
+        const d = await r.json();
+        if (d.success) {
+            alert('✅ 知识添加成功！当前共 ' + d.total + ' 条知识');
+            closeAddKnowledge();
+            refreshKnowledgeList();
+            checkRAG();
+        } else {
+            alert('❌ 添加失败: ' + (d.message || '未知错误'));
+        }
+    } catch(e) {
+        alert('❌ 请求失败: ' + e.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function deleteKnowledge(id) {
+    if (!confirm('确定要删除这条知识吗？')) return;
+    try {
+        const r = await fetch(API_BASE + '/api/rag/delete/' + id, {method: 'DELETE'});
+        const d = await r.json();
+        if (d.success) {
+            alert('✅ 删除成功');
+            refreshKnowledgeList();
+            checkRAG();
+        } else {
+            alert('❌ 删除失败: ' + (d.message || '未知错误'));
+        }
+    } catch(e) {
+        alert('❌ 请求失败: ' + e.message);
+    }
+}
+
+async function clearAllKnowledge() {
+    if (!confirm('⚠️ 确定要清空所有知识吗？此操作不可恢复！')) return;
+    if (!confirm('再次确认：清空全部 ' + document.getElementById('knowledgeCount').textContent + ' 条知识？')) return;
+    try {
+        const r = await fetch(API_BASE + '/api/rag/clear', {method: 'POST'});
+        const d = await r.json();
+        if (d.success) {
+            alert('✅ 已清空所有知识');
+            isInitialized = false;
+            refreshKnowledgeList();
+            checkRAG();
+        } else {
+            alert('❌ 清空失败: ' + (d.message || '未知错误'));
+        }
+    } catch(e) {
+        alert('❌ 请求失败: ' + e.message);
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ========== 回车键支持 ==========
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('ragQuery');
+    if (input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                askRAG();
+            }
+        });
+    }
+    checkRAG();
+});
+</script>
+</body>
+</html>

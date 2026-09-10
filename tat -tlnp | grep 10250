@@ -1,0 +1,23 @@
+[0;1;32m●[0m kubelet.service - kubelet: The Kubernetes Node Agent
+     Loaded: loaded (]8;;file://k8s-master-1/usr/lib/systemd/system/kubelet.service/usr/lib/systemd/system/kubelet.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+    Drop-In: /etc/systemd/system/kubelet.service.d
+             └─]8;;file://k8s-master-1/etc/systemd/system/kubelet.service.d/10-kubeadm.conf10-kubeadm.conf]8;;
+     Active: [0;1;32mactive (running)[0m since Mon 2026-05-11 14:23:32 CST; 1min 9s ago
+       Docs: ]8;;https://kubernetes.io/docs/home/https://kubernetes.io/docs/home/]8;;
+   Main PID: 3516796 (kubelet)
+      Tasks: 11 (limit: 4544)
+     Memory: 35.5M (peak: 36.1M)
+        CPU: 1.552s
+     CGroup: /system.slice/kubelet.service
+             └─[0;38;5;245m3516796 /usr/bin/kubelet --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --config=/var/lib/kubelet/config.yaml --container-runtime-endpoint=unix:///var/run/containerd/containerd.sock --pod-infra-container-image=registry.aliyuncs.com/google_containers/pause:3.9[0m
+
+May 11 14:23:33 k8s-master-1 kubelet[3516796]: I0511 14:23:33.840667 3516796 reconciler_common.go:258] "operationExecutor.VerifyControllerAttachedVolume started for volume \"policysync\" (UniqueName: \"kubernetes.io/host-path/e8387137-7fed-4403-8e6d-ce81a7880463-policysync\") pod \"calico-node-zhl6l\" (UID: \"e8387137-7fed-4403-8e6d-ce81a7880463\") " pod="kube-system/calico-node-zhl6l"
+May 11 14:23:33 k8s-master-1 kubelet[3516796]: I0511 14:23:33.840693 3516796 reconciler_common.go:258] "operationExecutor.VerifyControllerAttachedVolume started for volume \"var-run-calico\" (UniqueName: \"kubernetes.io/host-path/e8387137-7fed-4403-8e6d-ce81a7880463-var-run-calico\") pod \"calico-node-zhl6l\" (UID: \"e8387137-7fed-4403-8e6d-ce81a7880463\") " pod="kube-system/calico-node-zhl6l"
+May 11 14:23:33 k8s-master-1 kubelet[3516796]: I0511 14:23:33.840704 3516796 reconciler_common.go:258] "operationExecutor.VerifyControllerAttachedVolume started for volume \"cni-bin-dir\" (UniqueName: \"kubernetes.io/host-path/e8387137-7fed-4403-8e6d-ce81a7880463-cni-bin-dir\") pod \"calico-node-zhl6l\" (UID: \"e8387137-7fed-4403-8e6d-ce81a7880463\") " pod="kube-system/calico-node-zhl6l"
+May 11 14:23:33 k8s-master-1 kubelet[3516796]: I0511 14:23:33.840715 3516796 reconciler_common.go:258] "operationExecutor.VerifyControllerAttachedVolume started for volume \"xtables-lock\" (UniqueName: \"kubernetes.io/host-path/e8387137-7fed-4403-8e6d-ce81a7880463-xtables-lock\") pod \"calico-node-zhl6l\" (UID: \"e8387137-7fed-4403-8e6d-ce81a7880463\") " pod="kube-system/calico-node-zhl6l"
+May 11 14:23:33 k8s-master-1 kubelet[3516796]: I0511 14:23:33.840729 3516796 reconciler_common.go:258] "operationExecutor.VerifyControllerAttachedVolume started for volume \"sys-fs\" (UniqueName: \"kubernetes.io/host-path/e8387137-7fed-4403-8e6d-ce81a7880463-sys-fs\") pod \"calico-node-zhl6l\" (UID: \"e8387137-7fed-4403-8e6d-ce81a7880463\") " pod="kube-system/calico-node-zhl6l"
+May 11 14:23:33 k8s-master-1 kubelet[3516796]: I0511 14:23:33.840742 3516796 reconciler_common.go:258] "operationExecutor.VerifyControllerAttachedVolume started for volume \"host-local-net-dir\" (UniqueName: \"kubernetes.io/host-path/e8387137-7fed-4403-8e6d-ce81a7880463-host-local-net-dir\") pod \"calico-node-zhl6l\" (UID: \"e8387137-7fed-4403-8e6d-ce81a7880463\") " pod="kube-system/calico-node-zhl6l"
+May 11 14:23:43 k8s-master-1 kubelet[3516796]: E0511 14:23:43.288691 3516796 kubelet.go:1890] "Failed creating a mirror pod for" err="pods \"etcd-k8s-master-1\" already exists" pod="kube-system/etcd-k8s-master-1"
+May 11 14:23:43 k8s-master-1 kubelet[3516796]: E0511 14:23:43.293392 3516796 kubelet.go:1890] "Failed creating a mirror pod for" err="pods \"kube-apiserver-k8s-master-1\" already exists" pod="kube-system/kube-apiserver-k8s-master-1"
+May 11 14:23:43 k8s-master-1 kubelet[3516796]: E0511 14:23:43.294926 3516796 kubelet.go:1890] "Failed creating a mirror pod for" err="pods \"kube-scheduler-k8s-master-1\" already exists" pod="kube-system/kube-scheduler-k8s-master-1"
+May 11 14:23:43 k8s-master-1 kubelet[3516796]: E0511 14:23:43.296822 3516796 kubelet.go:1890] "Failed creating a mirror pod for" err="pods \"kube-controller-manager-k8s-master-1\" already exists" pod="kube-system/kube-controller-manager-k8s-master-1"

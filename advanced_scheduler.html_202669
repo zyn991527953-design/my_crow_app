@@ -1,0 +1,415 @@
+<!-- 在调度页面中添加以下模块 -->
+<div class="scheduler-tabs">
+    <div class="tab-buttons">
+        <button class="tab-btn active" onclick="switchSchedulerTab('basic')">基本配置</button>
+        <button class="tab-btn" onclick="switchSchedulerTab('storage')">存储挂载</button>
+        <button class="tab-btn" onclick="switchSchedulerTab('gpu')">GPU配置</button>
+        <button class="tab-btn" onclick="switchSchedulerTab('network')">网络配置</button>
+        <button class="tab-btn" onclick="switchSchedulerTab('advanced')">高级配置</button>
+        <button class="tab-btn" onclick="switchSchedulerTab('yaml')">YAML编辑</button>
+    </div>
+    
+    <!-- 基本配置 Tab -->
+    <div id="basicTab" class="tab-content active">
+        <div class="form-group">
+            <label>部署名称</label>
+            <input type="text" id="deployName" placeholder="自动生成" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>命名空间</label>
+            <select id="namespaceSelect" class="form-control">
+                <option value="default">default</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>副本数</label>
+            <input type="number" id="replicas" value="1" min="1" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>启动命令</label>
+            <input type="text" id="startCommand" placeholder="例如: /bin/sh, -c, python app.py" class="form-control">
+            <small>留空则使用镜像默认命令</small>
+        </div>
+    </div>
+    
+    <!-- 存储挂载 Tab -->
+    <div id="storageTab" class="tab-content">
+        <div class="form-group">
+            <label>选择 Ceph 存储</label>
+            <select id="cephVolumeSelect" class="form-control" onchange="loadCephMounts()">
+                <option value="">-- 选择已有存储 --</option>
+            </select>
+            <button onclick="createNewCephVolume()" class="btn-secondary">+ 新建网盘</button>
+        </div>
+        <div id="cephMountPoints"></div>
+        <div class="form-group">
+            <label>挂载到容器路径</label>
+            <input type="text" id="mountPath" placeholder="/data" class="form-control">
+            <button onclick="addVolumeMount()" class="btn-secondary">添加挂载</button>
+        </div>
+        <div id="volumeMountsList"></div>
+    </div>
+    
+    <!-- GPU 配置 Tab -->
+    <div id="gpuTab" class="tab-content">
+        <div class="form-group">
+            <label><input type="checkbox" id="enableGPU" onchange="toggleGPU()"> 启用 GPU</label>
+        </div>
+        <div id="gpuConfig" style="display:none;">
+            <div class="form-group">
+                <label>GPU 数量</label>
+                <input type="number" id="gpuCount" value="1" min="0.1" step="0.1" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>GPU 内存 (MB)</label>
+                <input type="number" id="gpuMemory" placeholder="不限制" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>GPU 类型</label>
+                <select id="gpuType" class="form-control">
+                    <option value="nvidia.com/gpu">NVIDIA GPU</option>
+                    <option value="hami.io/vgpu">HAMI vGPU</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 网络配置 Tab -->
+    <div id="networkTab" class="tab-content">
+        <div id="portsList"></div>
+        <button onclick="addPortMapping()" class="btn-secondary">+ 添加端口映射</button>
+        <div class="form-group">
+            <label>Service 类型</label>
+            <select id="serviceType" class="form-control">
+                <option value="">不创建 Service</option>
+                <option value="ClusterIP">ClusterIP</option>
+                <option value="NodePort">NodePort</option>
+                <option value="LoadBalancer">LoadBalancer</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>环境变量</label>
+            <div id="envVars"></div>
+            <button onclick="addEnvVar()" class="btn-secondary">+ 添加环境变量</button>
+        </div>
+    </div>
+    
+    <!-- 高级配置 Tab -->
+    <div id="advancedTab" class="tab-content">
+        <div class="form-group">
+            <label>节点选择器</label>
+            <select id="nodeSelectMulti" multiple class="form-control">
+                <option value="">-- 自动调度 --</option>
+            </select>
+            <small>按住 Ctrl 多选节点支持多节点部署</small>
+        </div>
+        <div class="form-group">
+            <label>标签</label>
+            <div id="labels"></div>
+            <button onclick="addLabel()" class="btn-secondary">+ 添加标签</button>
+        </div>
+        <div class="form-group">
+            <label>注解</label>
+            <div id="annotations"></div>
+            <button onclick="addAnnotation()" class="btn-secondary">+ 添加注解</button>
+        </div>
+    </div>
+    
+    <!-- YAML 编辑 Tab -->
+    <div id="yamlTab" class="tab-content">
+        <div class="form-group">
+            <label>直接编辑 YAML</label>
+            <textarea id="yamlEditor" rows="20" class="form-control" 
+                      placeholder="粘贴 Kubernetes Deployment YAML"></textarea>
+        </div>
+        <div class="form-group">
+            <label>或上传 YAML 文件</label>
+            <input type="file" id="yamlFile" accept=".yaml,.yml" onchange="loadYAMLFile()">
+        </div>
+    </div>
+</div>
+
+<style>
+.scheduler-tabs {
+    margin-top: 20px;
+}
+.tab-buttons {
+    display: flex;
+    gap: 5px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+.tab-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+}
+.tab-btn.active {
+    color: #4a90e2;
+    border-bottom: 2px solid #4a90e2;
+}
+.tab-content {
+    display: none;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+.tab-content.active {
+    display: block;
+}
+.form-group {
+    margin-bottom: 15px;
+}
+.form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+.btn-secondary {
+    padding: 8px 16px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 5px;
+}
+.volume-mount-item, .port-item, .env-item, .label-item {
+    padding: 10px;
+    margin: 5px 0;
+    background: white;
+    border-radius: 4px;
+    display: flex;
+    gap: 10px;
+}
+</style>
+
+<script>
+// Tab 切换
+function switchSchedulerTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(tabName + 'Tab').classList.add('active');
+}
+
+// 存储挂载相关
+let volumeMounts = [];
+
+function addVolumeMount() {
+    const pvcName = document.getElementById('cephVolumeSelect').value;
+    const mountPath = document.getElementById('mountPath').value;
+    if (!pvcName || !mountPath) {
+        alert('请选择存储和挂载路径');
+        return;
+    }
+    volumeMounts.push({name: pvcName, mountPath: mountPath});
+    renderVolumeMounts();
+    document.getElementById('mountPath').value = '';
+}
+
+function renderVolumeMounts() {
+    const container = document.getElementById('volumeMountsList');
+    container.innerHTML = volumeMounts.map((vm, i) => `
+        <div class="volume-mount-item">
+            <span>📁 ${vm.name} → ${vm.mountPath}</span>
+            <button onclick="removeVolumeMount(${i})">删除</button>
+        </div>
+    `).join('');
+}
+
+function removeVolumeMount(index) {
+    volumeMounts.splice(index, 1);
+    renderVolumeMounts();
+}
+
+// 端口映射
+let portMappings = [];
+
+function addPortMapping() {
+    const port = {
+        containerPort: prompt('容器端口:'),
+        hostPort: prompt('主机端口 (可选):'),
+        protocol: prompt('协议 (TCP/UDP):', 'TCP')
+    };
+    if (port.containerPort) {
+        portMappings.push(port);
+        renderPortMappings();
+    }
+}
+
+function renderPortMappings() {
+    const container = document.getElementById('portsList');
+    container.innerHTML = portMappings.map((p, i) => `
+        <div class="port-item">
+            <span>🔌 ${p.containerPort}:${p.hostPort || ''} (${p.protocol})</span>
+            <button onclick="removePortMapping(${i})">删除</button>
+        </div>
+    `).join('');
+}
+
+// GPU 配置
+function toggleGPU() {
+    const enabled = document.getElementById('enableGPU').checked;
+    document.getElementById('gpuConfig').style.display = enabled ? 'block' : 'none';
+}
+
+// 环境变量
+let envVars = [];
+
+function addEnvVar() {
+    const name = prompt('变量名:');
+    const value = prompt('变量值:');
+    if (name && value) {
+        envVars.push({name, value});
+        renderEnvVars();
+    }
+}
+
+function renderEnvVars() {
+    const container = document.getElementById('envVars');
+    container.innerHTML = envVars.map((env, i) => `
+        <div class="env-item">
+            <span>${env.name}=${env.value}</span>
+            <button onclick="removeEnvVar(${i})">删除</button>
+        </div>
+    `).join('');
+}
+
+// 标签
+let labels = [];
+
+function addLabel() {
+    const key = prompt('标签键:');
+    const value = prompt('标签值:');
+    if (key && value) {
+        labels.push({key, value});
+        renderLabels();
+    }
+}
+
+// YAML 处理
+function loadYAMLFile() {
+    const file = document.getElementById('yamlFile').files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('yamlEditor').value = e.target.result;
+        };
+        reader.readAsText(file);
+    }
+}
+
+// 增强的部署函数
+async function advancedDeploy() {
+    const deployData = {
+        namespace: document.getElementById('namespaceSelect').value,
+        name: document.getElementById('deployName').value || undefined,
+        replicas: parseInt(document.getElementById('replicas').value),
+        container: {
+            name: document.getElementById('imageSelect').value || window.selectedImage,
+            image: document.getElementById('imageSelect').value || window.selectedImage
+        },
+        resources: {
+            requests: {
+                cpu: document.getElementById('cpuCores').value,
+                memory: document.getElementById('memoryMB').value + 'Mi'
+            }
+        }
+    };
+    
+    // 启动命令
+    const command = document.getElementById('startCommand').value;
+    if (command) {
+        deployData.command = command.split(',');
+    }
+    
+    // 存储挂载
+    if (volumeMounts.length > 0) {
+        deployData.volumes = volumeMounts.map(vm => ({
+            name: vm.name,
+            persistentVolumeClaim: {claimName: vm.name},
+            mountPath: vm.mountPath
+        }));
+    }
+    
+    // GPU
+    if (document.getElementById('enableGPU').checked) {
+        deployData.gpu = {
+            count: parseFloat(document.getElementById('gpuCount').value),
+            memory: document.getElementById('gpuMemory').value
+        };
+    }
+    
+    // 端口
+    if (portMappings.length > 0) {
+        deployData.ports = portMappings;
+    }
+    
+    // 环境变量
+    if (envVars.length > 0) {
+        deployData.env = envVars;
+    }
+    
+    // 多节点
+    const selectedNodes = Array.from(document.getElementById('nodeSelectMulti').selectedOptions)
+        .filter(opt => opt.value)
+        .map(opt => opt.value);
+    
+    if (selectedNodes.length > 1) {
+        deployData.multiNode = {
+            enabled: true,
+            nodes: selectedNodes,
+            replicasPerNode: deployData.replicas
+        };
+    } else if (selectedNodes.length === 1) {
+        deployData.nodeName = selectedNodes[0];
+    }
+    
+    // YAML 模式
+    const yaml = document.getElementById('yamlEditor').value;
+    if (yaml) {
+        deployData.yaml = yaml;
+    }
+    
+    try {
+        const response = await fetch('/api/advanced-deploy', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(deployData)
+        });
+        const result = await response.json();
+        alert('✅ 部署成功！\n' + JSON.stringify(result, null, 2));
+        switchPage('deployments');
+    } catch (error) {
+        alert('❌ 部署失败: ' + error.message);
+    }
+}
+
+// 加载命名空间和节点
+async function loadNamespacesAndNodes() {
+    const [namespaces, nodes] = await Promise.all([
+        fetch('/api/namespaces').then(r => r.json()),
+        fetch('/api/nodes').then(r => r.json())
+    ]);
+    
+    const nsSelect = document.getElementById('namespaceSelect');
+    nsSelect.innerHTML = namespaces.map(ns => 
+        `<option value="${ns.name}">${ns.name}</option>`
+    ).join('');
+    
+    const nodeSelect = document.getElementById('nodeSelectMulti');
+    nodeSelect.innerHTML = nodes.map(node => 
+        `<option value="${node.name}">${node.name} (${node.status})</option>`
+    ).join('');
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    loadNamespacesAndNodes();
+});
+</script>
